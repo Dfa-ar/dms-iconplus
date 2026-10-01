@@ -31,15 +31,15 @@
             <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">
                 Peran Operasional
             </label>
-            <div class="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
-                @foreach (['supervisor' => 'Supervisor', 'admin' => 'Admin / PIC', 'petugas' => 'Petugas Lapangan'] as $value => $label)
+            <div class="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+                @foreach (['admin' => 'Admin / PIC', 'petugas' => 'Petugas Lapangan'] as $value => $label)
                     <label class="relative">
                         <input
                             type="radio"
                             name="role_tab"
                             value="{{ $value }}"
                             class="peer sr-only"
-                            {{ old('role_tab', 'dispatcher_noc') === $value ? 'checked' : '' }}
+                            {{ old('role_tab', 'admin') === $value ? 'checked' : '' }}
                         >
                         <span class="flex cursor-pointer items-center justify-center rounded-md py-2 text-center text-slate-500 peer-checked:bg-white peer-checked:text-slate-900 peer-checked:shadow">
                             {{ $label }}

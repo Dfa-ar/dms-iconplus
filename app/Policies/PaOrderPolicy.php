@@ -9,12 +9,12 @@ class PaOrderPolicy
 {
     /**
      * Lihat daftar PA (index).
-     * Admin & Supervisor: semua data. Petugas: tetap true, tapi controller
+     * Admin: semua data. Petugas: hanya PA miliknya sendiri, controller
      * WAJIB scope query-nya ke PA miliknya sendiri (lihat catatan di README).
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->role?->name, ['admin', 'supervisor', 'petugas'], true);
+        return in_array($user->role?->name, ['admin', 'petugas'], true);
     }
 
     /**
@@ -25,7 +25,7 @@ class PaOrderPolicy
     public function view(User $user, PaOrder $paOrder): bool
     {
         return match ($user->role?->name) {
-            'admin', 'supervisor' => true,
+            'admin' => true,
             'petugas' => $this->isOwner($user, $paOrder),
             default => false,
         };

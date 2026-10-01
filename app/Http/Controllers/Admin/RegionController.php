@@ -28,9 +28,14 @@ class RegionController extends Controller
             'kecamatan' => ['nullable', 'string', 'max:150'],
             'kelurahan' => ['nullable', 'string', 'max:150'],
             'parent_group' => ['nullable', 'string', 'max:100'],
+            'office_code' => ['nullable', 'string', 'max:50'],
+            'office_name' => ['nullable', 'string', 'max:150'],
+            'level' => ['nullable', 'in:office,kabupaten_kota,kecamatan,kelurahan'],
+            'parent_region_id' => ['nullable', 'exists:regions,id'],
+            'is_office' => ['nullable', 'boolean'],
         ]);
 
-        Region::create($data);
+        Region::create($request->boolean('is_office') ? $data : array_merge($data, ['is_office' => false]));
 
         return back()->with('status', 'Wilayah berhasil ditambahkan.');
     }
@@ -44,9 +49,14 @@ class RegionController extends Controller
             'kecamatan' => ['nullable', 'string', 'max:150'],
             'kelurahan' => ['nullable', 'string', 'max:150'],
             'parent_group' => ['nullable', 'string', 'max:100'],
+            'office_code' => ['nullable', 'string', 'max:50'],
+            'office_name' => ['nullable', 'string', 'max:150'],
+            'level' => ['nullable', 'in:office,kabupaten_kota,kecamatan,kelurahan'],
+            'parent_region_id' => ['nullable', 'exists:regions,id'],
+            'is_office' => ['nullable', 'boolean'],
         ]);
 
-        $region->update($data);
+        $region->update($request->boolean('is_office') ? $data : array_merge($data, ['is_office' => false]));
 
         return back()->with('status', 'Wilayah berhasil diperbarui.');
     }

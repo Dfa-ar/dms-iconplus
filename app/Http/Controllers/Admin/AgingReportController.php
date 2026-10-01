@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaOrder;
+use App\Models\Region;
 use App\Models\SlaSetting;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Response;
 
 class AgingReportController extends Controller
@@ -29,17 +31,31 @@ class AgingReportController extends Controller
             $query->where('region_id', $request->input('region_id'));
         }
 
-        $paOrders = $query->get()
+        $rows = $query->get()
             ->sortByDesc('aging')
             ->map(fn (PaOrder $pa) => [
                 'pa' => $pa,
                 'aging' => $pa->aging,
                 'priority' => $this->priorityFor($pa->aging, $sla),
-            ]);
+            ])
+            ->values();
+
+        $perPage = min((int) ($request->input('per_page', 15) ?: 15), 50);
+        $page = max((int) $request->input('page', 1), 1);
+        $pagedRows = new LengthAwarePaginator(
+            $rows->forPage($page, $perPage),
+            $rows->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        $regions = Region::orderBy('kabupaten_kota')->get();
 
         return view('admin.laporan.aging', [
-            'rows' => $paOrders,
+            'rows' => $pagedRows,
             'sla' => $sla,
+            'regions' => $regions,
         ]);
     }
 

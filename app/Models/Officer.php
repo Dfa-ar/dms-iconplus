@@ -13,7 +13,7 @@ class Officer extends Model
 
     protected $fillable = [
         'user_id', 'employee_code', 'name', 'phone',
-        'region_id', 'is_active', 'daily_target',
+        'region_id', 'kantor_perwakilan_id', 'is_active', 'daily_target',
     ];
 
     protected $casts = [
@@ -28,6 +28,11 @@ class Officer extends Model
     public function region(): BelongsTo
     {
         return $this->belongsTo(Region::class);
+    }
+
+    public function kantorPerwakilan(): BelongsTo
+    {
+        return $this->belongsTo(KantorPerwakilan::class, 'kantor_perwakilan_id');
     }
 
     public function assignments(): HasMany

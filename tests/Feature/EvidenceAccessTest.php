@@ -21,8 +21,6 @@ class EvidenceAccessTest extends TestCase
         Storage::fake('public');
         [$paOrder, $owner, $other] = $this->paWithPetugas();
         $admin = $this->userWithRole('admin');
-        $supervisor = $this->userWithRole('supervisor');
-        $superAdmin = $this->userWithRole('super_admin');
         $evidence = Evidence::create([
             'pa_id' => $paOrder->id,
             'type' => 'perangkat',
@@ -32,7 +30,7 @@ class EvidenceAccessTest extends TestCase
         ]);
         Storage::disk('public')->put($evidence->file_path, 'image-content');
 
-        foreach ([$admin, $supervisor, $owner, $superAdmin] as $user) {
+        foreach ([$admin, $owner] as $user) {
             $response = $this->actingAs($user)->get(route('evidence.show', $evidence));
 
             $response->assertOk();

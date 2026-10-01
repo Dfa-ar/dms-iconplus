@@ -9,12 +9,12 @@ class OfficerPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role?->name, ['admin', 'supervisor'], true);
+        return $user->role?->name === 'admin';
     }
 
     public function view(User $user, Officer $officer): bool
     {
-        return in_array($user->role?->name, ['admin', 'supervisor'], true);
+        return $user->role?->name === 'admin';
     }
 
     public function create(User $user): bool

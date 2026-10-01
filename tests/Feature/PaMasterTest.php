@@ -45,17 +45,17 @@ class PaMasterTest extends TestCase
             ->assertSee('ASSIGNED');
     }
 
-    public function test_admin_can_open_upload_page_but_supervisor_cannot(): void
+    public function test_admin_can_open_upload_page_but_petugas_cannot(): void
     {
         $admin = $this->userWithRole('admin');
-        $supervisor = $this->userWithRole('supervisor');
+        $petugas = $this->userWithRole('petugas');
 
         $this->actingAs($admin)
             ->get(route('admin.pa.upload'))
             ->assertOk()
             ->assertSee('Impor Excel / CSV');
 
-        $this->actingAs($supervisor)
+        $this->actingAs($petugas)
             ->get(route('admin.pa.upload'))
             ->assertForbidden();
     }

@@ -12,13 +12,13 @@ class AssignmentPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->role?->name, ['admin', 'supervisor'], true);
+        return $user->role?->name === 'admin';
     }
 
     public function view(User $user, Assignment $assignment): bool
     {
         return match ($user->role?->name) {
-            'admin', 'supervisor' => true,
+            'admin' => true,
             'petugas' => $assignment->officer?->user_id === $user->id,
             default => false,
         };

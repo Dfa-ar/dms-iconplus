@@ -10,7 +10,7 @@ class UploadBatch extends Model
 {
     protected $fillable = [
         'file_name', 'uploaded_by', 'uploaded_at',
-        'total_rows', 'success_rows', 'failed_rows', 'error_report_path',
+        'total_rows', 'success_rows', 'failed_rows', 'error_report_path', 'status',
     ];
 
     protected $casts = [

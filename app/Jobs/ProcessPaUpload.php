@@ -10,6 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class ProcessPaUpload implements ShouldQueue
 {
@@ -31,5 +32,20 @@ class ProcessPaUpload implements ShouldQueue
         } finally {
             Storage::disk('local')->delete($this->filePath);
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $batch = UploadBatch::find($this->batchId);
+        if (! $batch) {
+            return;
+        }
+
+        $reportPath = "upload-reports/batch-{$batch->id}.txt";
+        Storage::disk('local')->put($reportPath, 'Pemrosesan gagal: ' . ($exception?->getMessage() ?? 'Kesalahan tidak diketahui.'));
+        $batch->update([
+            'status' => 'failed',
+            'error_report_path' => $reportPath,
+        ]);
     }
 }

@@ -20,8 +20,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('petugas', OfficerController::class);
     });
 
-    // ---- Admin & Supervisor: dashboard + laporan (read only utk supervisor) ----
-    Route::middleware('role:admin,supervisor')->group(function () {
+    // ---- Admin / PIC: dashboard + laporan ----
+    Route::middleware('role:admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/regions', [DashboardController::class, 'regions']);
         Route::get('/dashboard/kendala', [DashboardController::class, 'kendala']);
@@ -37,8 +37,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/tasks/{paOrder}/kendala', [TaskController::class, 'kendala']);   // Policy::reportKendala
     });
 
-    // ---- Super Admin ----
-    Route::middleware('role:super_admin')->prefix('system')->group(function () {
+    // ---- Admin / PIC: pengaturan sistem ----
+    Route::middleware('role:admin')->prefix('system')->group(function () {
         // Route::resource('users', UserController::class);
         // Route::get('/sla-settings', [SlaSettingController::class, 'edit']);
         // Route::get('/audit-log', [AuditLogController::class, 'index']);

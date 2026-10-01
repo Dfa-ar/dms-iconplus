@@ -15,13 +15,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth'])->group(function () {
 
     // ===== Modul: Monitoring & Analitik (Orang 1) =====
-    Route::middleware('role:admin,supervisor,super_admin')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         // Route::get('/control-tower', [ControlTowerController::class, 'index'])->name('control-tower');
         // Route::get('/laporan-aging', [AgingReportController::class, 'index'])->name('aging.index');
     });
 
     // ===== Modul: Data & Distribusi Tugas (Orang 2) =====
-    Route::middleware('role:admin,super_admin')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         // Route::resource('master-data-pa', PaOrderController::class);
         // Route::resource('master-petugas', OfficerController::class);
         // Route::get('/auto-assignment', [AssignmentController::class, 'index'])->name('assignment.index');

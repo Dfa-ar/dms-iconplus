@@ -10,8 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * ... sembunyikan sebagian nomor kontak bila role tidak membutuhkannya."
  *
  * Yang benar-benar butuh nomor kontak utuh untuk kerja lapangan: admin
- * (koordinasi) dan petugas (menghubungi pelanggan). supervisor cuma
- * memonitor performa/aging, dan super_admin cuma kelola
+ * (koordinasi) dan petugas (menghubungi pelanggan). Admin adalah satu
+ * role yang memegang seluruh wewenang operasional dan konfigurasi.
  * user/role/SLA/audit log (Blueprint bagian 4) -- keduanya tidak perlu
  * nomor utuh, jadi disamarkan.
  *

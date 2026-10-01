@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.petugas')
 
 @php
 	$active = 'dashboard';
@@ -21,8 +21,8 @@
 			<table class="w-full text-left text-sm">
 				<thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
 					<tr>
-						<th class="px-5 py-3 font-medium">PA</th>
-						<th class="px-5 py-3 font-medium">Pelanggan</th>
+						<th class="px-5 py-3 font-medium">No PA</th>
+						<th class="px-5 py-3 font-medium">ID Pelanggan</th>
 						<th class="px-5 py-3 font-medium">Status</th>
 						<th class="px-5 py-3 font-medium">Tanggal</th>
 					</tr>
@@ -31,7 +31,7 @@
 					@forelse ($history as $task)
 						<tr class="hover:bg-slate-50/60">
 							<td class="px-5 py-4 font-medium text-slate-700">{{ $task->pa_number }}</td>
-							<td class="px-5 py-4 text-slate-500">{{ $task->customer_name }}</td>
+							<td class="px-5 py-4 text-slate-500">{{ $task->customer_id ?? '-' }}</td>
 							<td class="px-5 py-4"><x-badge-status :status="$task->current_status" /></td>
 							<td class="px-5 py-4 text-slate-500">{{ $task->completed_at?->translatedFormat('d F Y') ?? '-' }}</td>
 						</tr>

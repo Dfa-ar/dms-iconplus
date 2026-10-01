@@ -9,7 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Proteksi route berdasarkan role. Dipakai lewat alias 'role', misal:
  *   Route::middleware(['auth', 'role:admin'])->group(...)
- *   Route::middleware(['auth', 'role:admin,supervisor'])->group(...)
  *
  * Ini pelengkap Policy, bukan pengganti -- middleware ini menolak akses
  * ke SELURUH route/menu (mis. Petugas tidak boleh buka /admin/petugas

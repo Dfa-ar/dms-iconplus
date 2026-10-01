@@ -1,8 +1,8 @@
 # IDMS Policy, Controller & Audit Log Starter (Laravel 12)
 
-Lanjutan dari `idms-database-starter` — **semua Controller untuk setiap
-modul Admin, Petugas, dan Super Admin sudah lengkap**, plus Policy, Form
-Request, middleware role, dan audit log dari tahap-tahap sebelumnya.
+Lanjutan dari `idms-database-starter` — **semua Controller untuk modul
+Admin dan Petugas sudah lengkap**, plus Policy, Form Request, middleware
+role, dan audit log dari tahap-tahap sebelumnya.
 
 ## Dependency tambahan yang perlu di-install
 
@@ -26,9 +26,9 @@ npm run build
 
 1. Salin ke project Laravel kamu (struktur folder sama persis):
    - `app/Policies/*.php`
-   - `app/Http/Requests/{Admin,Petugas,SuperAdmin}/*.php`
+   - `app/Http/Requests/{Admin,Petugas}/*.php`
    - `app/Http/Middleware/EnsureUserHasRole.php`
-   - `app/Http/Controllers/{Admin,Petugas,SuperAdmin}/*.php`
+   - `app/Http/Controllers/{Admin,Petugas}/*.php`
    - `app/Services/AuditLogger.php`
    - `app/Observers/PaOrderObserver.php`
 2. Isi method `boot()` dari `app/Providers/AppServiceProvider.php` di sini
@@ -74,15 +74,6 @@ mengecek kepemilikan data per baris.
 |---|---|---|
 | `TaskController` | `index`, `show`, `start`, `complete`, `kendala`, `history` | FR-07/08/09 + riwayat (struktur menu 8.2) |
 
-### Super Admin
-
-| Controller | Method | Fungsi |
-|---|---|---|
-| `UserController` | resource kecuali `show` | Kelola akun & role user (nonaktifkan, bukan hapus) |
-| `RoleController` | `index`,`store`,`destroy` | Kelola master role (dijaga tidak bisa hapus role yang masih dipakai) |
-| `SlaSettingController` | `edit`, `update` | Konfigurasi ambang aging/SLA (single-row settings) |
-| `AuditLogController` | `index` | Lihat audit log, read-only, dengan filter user/action/tanggal |
-
 ## Auto-Assignment (`AssignmentController::generate`) — FR-05, Blueprint 11.1
 
 Bagian paling penting di sistem (yang menggantikan proses manual
@@ -108,15 +99,15 @@ sudah `ASSIGNED` — otomatis aman tanpa perlu flag tambahan.
 
 ## Upload Excel & deteksi duplikat (`PaUploadController`) — FR-02
 
-Baca file lewat PhpSpreadsheet, satu baris = satu PA. Kolom yang
-diharapkan: `pa_number | customer_id | customer_name | contact_phone |
-address | kabupaten_kota | kecamatan | kelurahan | pa_date`.
+Baca file lewat PhpSpreadsheet per chunk 500 baris. Kolom wajib:
+`pa_number | customer_id | id_pln | customer_name | kabupaten_kota |
+pa_date`; kolom kontak/alamat/kecamatan/kelurahan tetap opsional.
 
-Setiap baris dicari berdasarkan `pa_number`. Jika belum ada, data dibuat
-sebagai `UNASSIGNED`; jika sudah ada, field sumber pelanggan/wilayah
-diperbarui tanpa menimpa status, assignment, atau riwayat workflow aktif.
-Baris yang diperbarui dan baris gagal dicatat ke
-`upload_batches.error_report_path` sebagai file teks.
+PA dibuat sebagai `UNASSIGNED`. Nomor `pa_number` yang sudah ada ditolak,
+tidak mengubah record yang tersimpan, dan dicatat bersama baris gagal pada
+`upload_batches.error_report_path`. ID Pelanggan (`customer_id`) dan ID PLN
+(`id_pln`) wajib terisi. Halaman Riwayat Upload menampilkan status batch,
+jumlah baris berhasil/gagal, dan menyediakan unduhan laporan error.
 
 File kecil diproses langsung. File dengan lebih dari 1.000 baris disimpan
 sementara lalu dikirim ke `ProcessPaUpload` pada queue database. Jalankan
@@ -133,17 +124,65 @@ selesai.
 
 | Class | Dipakai untuk | Validasi utama |
 |---|---|---|
-| `Petugas\CompletePaRequest` | Tombol "Selesai" | 3 foto wajib (perangkat, modem/ONT, serah terima) + nama penerima |
+| `Petugas\CompletePaRequest` | Finalisasi langkah Close ICRM | BA Pengambilan bertanda tangan + nama penerima; hanya tersedia setelah langkah 1–5 |
 | `Petugas\KendalaPaRequest` | Tombol "Kendala" | alasan (harus ada di `kendala_reasons`) + keterangan wajib + foto |
 | `Admin\UploadPaRequest` | Upload Excel PA | tipe file xlsx/xls/csv, maks 10 MB |
 | `Admin\GenerateAssignmentRequest` | Generate Tugas Hari Ini | wilayah wajib, target per petugas (default 20) |
 | `Admin\CorrectPaRequest` | Admin mengoreksi PA (termasuk yang sudah DONE) | status baru valid + **alasan koreksi wajib diisi** |
 | `Admin\StoreOfficerRequest` | Tambah/edit petugas | kode pegawai unik, wilayah wajib, opsional buat akun login sekalian |
-| `SuperAdmin\StoreUserRequest` | Tambah/edit user | email unik, role wajib, password wajib saat create |
 
 Semua sudah mengecek otorisasi lewat method `authorize()` masing-masing
 (memanggil Policy/Gate) — Controller tidak perlu `$this->authorize(...)`
 lagi kalau parameternya sudah di-type-hint dengan Form Request ini.
+
+## Checklist Close ICRM Petugas
+
+Finalisasi PA dilakukan berurutan dalam enam langkah. Setiap langkah
+memvalidasi field/evidence di server dan menyimpan bukti ke `evidences`:
+
+1. K3 awal: foto APD lengkap sebelum pekerjaan.
+2. ONT: foto depan dan belakang/SN wajib. Input SN bersifat opsional; QC
+   memeriksa keterbacaan langsung dari foto dan menolak bila SN buram.
+3. Kabel: panjang kabel, foto FAT, FAT/splitter wilayah PA, dan port aktif
+   dalam kapasitas splitter yang belum dipakai.
+4. ID PLN: konfirmasi ID PLN dari data PA, status KWH, dan catatan KWH wajib.
+   Foto KWH diminta bila statusnya ADA.
+5. K3 akhir: foto APD lengkap setelah pekerjaan.
+6. BA Pengambilan: dokumen bertanda tangan pelanggan dan nama penerima.
+   Waktu pengambilan dicatat otomatis. Tanpa BA ini PA tidak dapat menjadi
+   `PENDING_QC` atau masuk antrean QC.
+
+## QC dan Status Operasional
+
+Checklist QC dikelompokkan ke kategori A–F: K3 awal; foto ONT dan SN; kabel,
+FAT, splitter, dan port; konfirmasi ID PLN/KWH; K3 akhir; serta BA Pengambilan.
+Setiap item harus dikirim eksplisit. Penolakan wajib menyertakan alasan.
+QC massal menerima sampai 50 PA dengan checklist dan keputusan yang sama;
+semua PA divalidasi sebelum perubahan disimpan.
+
+Status PA bergerak dari `PENDING_QC` ke `PASSED` saat QC lolos, atau `REJECTED`
+saat QC ditolak. Penerbitan BAST mengubah status menjadi `BAST_ISSUED`.
+
+## BAST Batch per KP
+
+Batch BAST dipilih berdasarkan Kantor Perwakilan. Atur kode unik KP pada master
+Kantor Perwakilan; nomor dokumen memakai format `NNNN/BAST/KODE_KP/YYYY` dan
+urutannya terpisah per KP per tahun. Setiap PA hanya dapat masuk satu item BAST
+aktif, dilindungi validasi transaksi dan unique constraint database.
+
+BAST berstatus `FINAL` dapat dibatalkan dengan alasan wajib. Pembatalan mencatat
+pengguna/waktu dan audit log, mengarsipkan item, serta membuka PA untuk penerbitan
+BAST pengganti. PDF void tetap mempertahankan isi historis dengan penanda VOID.
+
+## Pembayaran Batch
+
+Setiap batch menyimpan tanggal, metode, referensi, catatan, pembuat, dan bukti
+privat; setiap PA di dalamnya menyimpan nominal masing-masing. Hanya PA dengan
+BAST final aktif yang belum lunas dapat dimasukkan. Batch memperbarui status PA
+dan menulis status log serta audit log khusus. Rekap dapat difilter tanggal,
+dikelompokkan menurut metode, dan diekspor ke CSV berisi nominal per PA serta
+total batch. Status legacy tidak dapat mengubah PA menjadi lunas tanpa transaksi
+dan bukti batch.
 
 ## Audit log koreksi PA DONE (Blueprint 11.3 & 14)
 
@@ -167,11 +206,7 @@ sendiri dengan detail gabungan sambil Observer dinonaktifkan sementara
 
 ## Yang sudah dicakup (sesuai Blueprint bagian 4, 11, 13, 14)
 
-- 4 role: `admin`, `petugas`, `supervisor`, `super_admin`.
-- `super_admin` dibuat bypass semua ability lewat `Gate::before` —
-  **[ASUMSI]**, sesuaikan kalau pembimbing mau `super_admin` dibatasi
-  hanya ke "kelola user/role, konfigurasi SLA, audit log" seperti
-  tertulis di tabel stakeholder Blueprint.
+- 2 role aktif: `admin` dan `petugas`.
 - "Petugas tidak dapat melihat atau mengubah PA milik petugas lain"
   (Blueprint 11.3) → `PaOrderPolicy::isOwner()` + scope query di
   `TaskController::index`.
@@ -180,7 +215,7 @@ sendiri dengan detail gabungan sambil Observer dinonaktifkan sementara
   `PaOrderPolicy` menolak status `DONE`; `PaOrderController::correct`
   terpisah, hanya untuk role `admin`.
 - Aging & warna prioritas (Blueprint 11.2) dibaca dari `sla_settings`,
-  bisa diubah Super Admin lewat `SlaSettingController` — tidak hardcode.
+  bisa diubah dari konfigurasi admin — tidak hardcode.
 - Login rate limiting: endpoint `POST /login` dibatasi 5 percobaan per menit
    berdasarkan identifier + IP melalui limiter `login` di
    `AppServiceProvider`.
@@ -203,6 +238,24 @@ sendiri dengan detail gabungan sambil Observer dinonaktifkan sementara
   role), baru pertimbangkan tabel `permissions` pivot atau paket seperti
   `spatie/laravel-permission` — untuk Phase 1 skema role sederhana ini
   masih cukup.
+
+## Deployment produksi dengan Docker
+
+Untuk menjalankan aplikasi di lingkungan produksi atau staging lokal, gunakan file konfigurasi Docker yang sudah disiapkan di root project:
+
+1. Salin template produksi:
+   `cp .env.production.example .env.production`
+2. Sesuaikan variabel database, URL, dan Redis sesuai target deploy.
+3. Jalankan:
+   `docker compose up --build -d`
+4. Setelah container aktif, pastikan migrasi berjalan otomatis:
+   `docker compose exec app php artisan migrate --force`
+5. Untuk seed demo/20k data saat kebutuhan dev:
+   `docker compose exec app php artisan db:seed --class='Database\\Seeders\\DemoDataSeeder' --force`
+
+Catatan:
+- Docker CLI harus tersedia di mesin host. Pada mesin ini, pengecekan sintaks YAML sudah berhasil via Python (`docker-compose.yml OK`), tetapi runtime `docker` tidak terinstal, jadi build container belum bisa dijalankan dari lingkungan saat ini.
+- Template `.env.production.example` dibuat untuk koneksi `mysql` dan `redis` di container network, bukan ke XAMPP host.
 
 ## Hasil review (sudah diperbaiki di paket ini)
 

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @php
 	$active = 'pa';
@@ -10,14 +10,17 @@
 
 @section('content')
 	<div class="max-w-3xl">
-		<div class="mb-5"><a href="{{ route('admin.pa.index') }}" class="text-sm font-medium text-sky-600">&larr; Kembali ke Master Data PA</a></div>
+		<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+			<a href="{{ route('admin.pa.index') }}" class="text-sm font-medium text-sky-600">&larr; Kembali ke Master Data PA</a>
+			<a href="{{ route('admin.pa.upload-history') }}" class="text-sm font-semibold text-sky-700 hover:text-sky-900">Riwayat upload</a>
+		</div>
 		<section class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
 			<h2 class="text-lg font-bold text-slate-900">Impor Excel / CSV</h2>
-			<p class="mt-1 text-sm text-slate-500">Gunakan baris pertama sebagai header. PA dengan nomor yang sudah ada akan dilewati dan dicatat dalam laporan error.</p>
+			<p class="mt-1 text-sm text-slate-500">Gunakan baris pertama sebagai header. Nomor PA yang sudah terdaftar ditolak dan dicatat dalam laporan error.</p>
 
 			<div class="mt-5 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
 				<div class="flex flex-wrap items-center justify-between gap-2"><p class="font-semibold text-slate-800">Kolom yang didukung</p><a href="{{ route('admin.pa.upload.template') }}" class="font-medium text-sky-600 hover:text-sky-800">Unduh template CSV</a></div>
-				<p class="mt-1 break-words font-mono text-xs">pa_number, customer_id, customer_name, contact_phone, address, kabupaten_kota, kecamatan, kelurahan, pa_date</p>
+				<p class="mt-1 break-words font-mono text-xs">pa_number, customer_id, id_pln, customer_name, contact_phone, address, kabupaten_kota, kecamatan, kelurahan, pa_date</p>
 				<p class="mt-2 text-xs text-slate-500">Format tanggal: YYYY-MM-DD. Ukuran maksimal: 10 MB.</p>
 			</div>
 

@@ -15,25 +15,23 @@ class CompletePaRequest extends FormRequest
 
     public function rules(): array
     {
+        if ($this->route('paOrder')?->close_icrm_step !== 'STEP_5') {
+            return [];
+        }
+
         return [
-            // Evidence aktif bersifat opsional di Phase 1; bila dikirim,
-            // setiap file tetap harus berupa gambar dan <= 4 MB.
-            'foto_perangkat' => ['nullable', 'image', 'max:4096'],
-            'foto_modem_ont' => ['nullable', 'image', 'max:4096'],
-            'foto_serah_terima' => ['nullable', 'image', 'max:4096'],
+            'ba_pengambilan_perangkat' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:8192'],
             'receiver_name' => ['required', 'string', 'max:150'],
-            // default ke waktu submit kalau tidak diisi manual
-            'pickup_time' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     public function messages(): array
     {
         return [
+            'ba_pengambilan_perangkat.required' => 'BA Pengambilan yang telah ditandatangani pelanggan wajib diunggah.',
+            'ba_pengambilan_perangkat.mimes' => 'BA Pengambilan harus berupa PDF atau gambar.',
+            'ba_pengambilan_perangkat.max' => 'Ukuran BA Pengambilan maksimal 8 MB.',
             'receiver_name.required' => 'Nama penerima wajib diisi.',
-            '*.image' => 'File yang diunggah harus berupa gambar.',
-            '*.max' => 'Ukuran file maksimal 4 MB.',
         ];
     }
 }

@@ -48,13 +48,4 @@ class UserFactory extends Factory
         return $this->state(fn () => ['role_id' => Role::firstOrCreate(['name' => 'petugas'])->id]);
     }
 
-    public function supervisor(): static
-    {
-        return $this->state(fn () => ['role_id' => Role::firstOrCreate(['name' => 'supervisor'])->id]);
-    }
-
-    public function superAdmin(): static
-    {
-        return $this->state(fn () => ['role_id' => Role::firstOrCreate(['name' => 'super_admin'])->id]);
-    }
 }

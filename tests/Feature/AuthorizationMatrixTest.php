@@ -19,52 +19,21 @@ class AuthorizationMatrixTest extends TestCase
         $this->actingAs($users['admin'])
             ->get(route('dashboard'))
             ->assertOk();
-        $this->actingAs($users['supervisor'])
-            ->get(route('dashboard'))
-            ->assertOk();
         $this->actingAs($users['petugas'])
-            ->get(route('dashboard'))
-            ->assertForbidden();
-        $this->actingAs($users['super_admin'])
             ->get(route('dashboard'))
             ->assertForbidden();
 
         $this->actingAs($users['admin'])
             ->get(route('admin.petugas.index'))
             ->assertOk();
-        $this->actingAs($users['supervisor'])
-            ->get(route('admin.petugas.index'))
-            ->assertForbidden();
         $this->actingAs($users['petugas'])
             ->get(route('admin.petugas.index'))
-            ->assertForbidden();
-        $this->actingAs($users['super_admin'])
-            ->get(route('admin.petugas.index'))
-            ->assertForbidden();
-
-        $this->actingAs($users['super_admin'])
-            ->get(route('system.users.index'))
-            ->assertOk();
-        $this->actingAs($users['admin'])
-            ->get(route('system.users.index'))
-            ->assertForbidden();
-        $this->actingAs($users['supervisor'])
-            ->get(route('system.users.index'))
-            ->assertForbidden();
-        $this->actingAs($users['petugas'])
-            ->get(route('system.users.index'))
             ->assertForbidden();
 
         $this->actingAs($users['petugas'])
             ->get(route('petugas.tasks.index'))
             ->assertOk();
         $this->actingAs($users['admin'])
-            ->get(route('petugas.tasks.index'))
-            ->assertForbidden();
-        $this->actingAs($users['supervisor'])
-            ->get(route('petugas.tasks.index'))
-            ->assertForbidden();
-        $this->actingAs($users['super_admin'])
             ->get(route('petugas.tasks.index'))
             ->assertForbidden();
     }
@@ -78,25 +47,11 @@ class AuthorizationMatrixTest extends TestCase
                 'viewDashboard' => true,
                 'exportReport' => true,
                 'uploadPa' => true,
-                'manageUsers' => false,
-            ],
-            'supervisor' => [
-                'viewDashboard' => true,
-                'exportReport' => true,
-                'uploadPa' => false,
-                'manageUsers' => false,
             ],
             'petugas' => [
                 'viewDashboard' => false,
                 'exportReport' => false,
                 'uploadPa' => false,
-                'manageUsers' => false,
-            ],
-            'super_admin' => [
-                'viewDashboard' => true,
-                'exportReport' => true,
-                'uploadPa' => true,
-                'manageUsers' => true,
             ],
         ];
 
@@ -116,7 +71,7 @@ class AuthorizationMatrixTest extends TestCase
     {
         $users = [];
 
-        foreach (['admin', 'supervisor', 'petugas', 'super_admin'] as $roleName) {
+        foreach (['admin', 'petugas'] as $roleName) {
             $role = Role::create(['name' => $roleName]);
             $users[$roleName] = User::factory()->create([
                 'role_id' => $role->id,

@@ -20,8 +20,13 @@ class AuditLogger
             'action' => $action,
             'entity' => $entity,
             'entity_id' => $entityId,
-            'detail' => $detail,
+            'detail' => $detail ?? 'No detail provided.',
             'created_at' => now(),
         ]);
+    }
+
+    public static function logWorkflow(string $action, PaOrder $paOrder, string $detail): AuditLog
+    {
+        return self::log($action, 'PaOrder', $paOrder->id, $detail);
     }
 }

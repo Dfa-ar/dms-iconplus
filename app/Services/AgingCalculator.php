@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
  * Menghitung warna/prioritas aging berdasarkan ambang batas di tabel
  * sla_settings (bukan hardcode), sesuai catatan [ASUMSI] di blueprint —
  * begitu nilainya dikonfirmasi ke pembimbing lapangan, tinggal diubah lewat
- * SuperAdmin\SlaSettingController, tidak perlu ubah kode.
+ * konfigurasi SLA admin, tidak perlu ubah kode.
  */
 class AgingCalculator
 {

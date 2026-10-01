@@ -19,6 +19,32 @@ class PaUploadController extends Controller
         return view('admin.pa.upload');
     }
 
+    public function history()
+    {
+        $this->authorize('uploadPa');
+
+        $uploadBatches = UploadBatch::with('uploader')
+            ->latest('uploaded_at')
+            ->paginate(20);
+
+        return view('admin.pa.upload-history', compact('uploadBatches'));
+    }
+
+    public function downloadErrors(UploadBatch $uploadBatch)
+    {
+        $this->authorize('uploadPa');
+
+        abort_unless(
+            $uploadBatch->error_report_path && Storage::disk('local')->exists($uploadBatch->error_report_path),
+            404
+        );
+
+        return response()->download(
+            Storage::disk('local')->path($uploadBatch->error_report_path),
+            'laporan-error-upload-' . $uploadBatch->id . '.txt'
+        );
+    }
+
     public function template()
     {
         $this->authorize('uploadPa');
@@ -26,7 +52,7 @@ class PaUploadController extends Controller
         return response()->streamDownload(function () {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'pa_number', 'customer_id', 'customer_name', 'contact_phone',
+                'pa_number', 'customer_id', 'id_pln', 'customer_name', 'contact_phone',
                 'address', 'kabupaten_kota', 'kecamatan', 'kelurahan', 'pa_date',
             ]);
             fclose($handle);
@@ -35,16 +61,13 @@ class PaUploadController extends Controller
 
     public function preview(UploadPaRequest $request)
     {
-        $spreadsheet = IOFactory::load($request->file('file')->getRealPath());
-        $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
-        $headers = array_shift($rows) ?? [];
-        $mapping = app(PaUploadService::class)->mapColumns($headers);
+        $preview = app(PaUploadService::class)->previewFile($request->file('file')->getRealPath());
 
         return view('admin.pa.upload', [
-            'previewHeaders' => $headers,
-            'previewRows' => array_slice($rows, 0, 10),
-            'mapping' => $mapping,
-            'requiredColumns' => ['pa_number', 'customer_name', 'kabupaten_kota', 'pa_date'],
+            'previewHeaders' => $preview['headers'],
+            'previewRows' => $preview['rows'],
+            'mapping' => $preview['mapping'],
+            'requiredColumns' => ['pa_number', 'customer_id', 'id_pln', 'customer_name', 'kabupaten_kota', 'pa_date'],
         ]);
     }
 
@@ -56,12 +79,13 @@ class PaUploadController extends Controller
             'file_name' => $file->getClientOriginalName(),
             'uploaded_by' => $request->user()->id,
             'uploaded_at' => now(),
+            'status' => 'queued',
         ]);
 
         $path = $file->store('upload-sources', 'local');
-        $spreadsheet = IOFactory::load(Storage::disk('local')->path($path));
-        $rowCount = max($spreadsheet->getActiveSheet()->getHighestDataRow() - 1, 0);
-        unset($spreadsheet);
+        $reader = IOFactory::createReaderForFile(Storage::disk('local')->path($path));
+        $worksheetInfo = $reader->listWorksheetInfo(Storage::disk('local')->path($path))[0] ?? ['totalRows' => 0];
+        $rowCount = max((int) $worksheetInfo['totalRows'] - 1, 0);
 
         if ($rowCount > 1000) {
             ProcessPaUpload::dispatch($batch->id, $path);
@@ -69,8 +93,11 @@ class PaUploadController extends Controller
             return back()->with('status', "Upload {$rowCount} baris masuk antrean pemrosesan. Hasil akan tersedia setelah worker queue selesai.");
         }
 
-        $result = app(PaUploadService::class)->process($batch, $path);
-        Storage::disk('local')->delete($path);
+        try {
+            $result = app(PaUploadService::class)->process($batch, $path);
+        } finally {
+            Storage::disk('local')->delete($path);
+        }
 
         return back()->with('status', sprintf(
             '%d dari %d baris berhasil diimpor. %d diperbarui, %d gagal.',

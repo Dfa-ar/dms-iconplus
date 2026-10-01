@@ -3,6 +3,15 @@
 namespace App\Providers;
 
 use App\Models\PaOrder;
+use App\Models\Region;
+use App\Models\Officer;
+use App\Models\KantorPerwakilan;
+use App\Models\FatPoint;
+use App\Models\Splitter;
+use App\Models\KendalaReason;
+use App\Models\QcRejectReason;
+use App\Models\SlaSetting;
+use App\Observers\MasterDataAuditObserver;
 use App\Observers\PaOrderObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -21,6 +30,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Audit log otomatis untuk koreksi PA yang sudah DONE (Blueprint 11.3)
         PaOrder::observe(PaOrderObserver::class);
+        foreach ([Region::class, Officer::class, KantorPerwakilan::class, FatPoint::class, Splitter::class, KendalaReason::class, QcRejectReason::class, SlaSetting::class] as $model) {
+            $model::observe(MasterDataAuditObserver::class);
+        }
 
         RateLimiter::for('login', function (Request $request) {
             $identifier = strtolower(trim((string) $request->input('identifier')));
@@ -28,14 +40,8 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($identifier.'|'.$request->ip());
         });
 
-        // super_admin sesuai Blueprint: "Kelola user dan role, konfigurasi
-        // SLA, audit log". Di implementasi ini super_admin juga dijadikan
-        // bypass penuh (bisa lakukan apapun) supaya tidak perlu didaftarkan
-        // manual di tiap ability baru -- ASUMSI, ubah kalau pembimbing
-        // ingin super_admin benar-benar dibatasi hanya 3 hal itu.
-        Gate::before(function ($user, string $ability) {
-            return $user->role?->name === 'super_admin' ? true : null;
-        });
+        // Blueprint terbaru: hanya ada 2 role aktif, Admin / PIC dan Petugas.
+        // Artefak legacy yang mengacu ke supervisor/super_admin dibuang.
 
         // ---- Ability yang tidak terikat ke satu record model ----
 
@@ -47,25 +53,17 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('generateAssignment', fn ($user) => $user->role?->name === 'admin');
 
         // FR-10, FR-11: Dashboard & progres wilayah
-        Gate::define('viewDashboard', fn ($user) => in_array(
-            $user->role?->name, ['admin', 'supervisor'], true
-        ));
+        Gate::define('viewDashboard', fn ($user) => $user->role?->name === 'admin');
 
         // FR-12: Export Excel
-        Gate::define('exportReport', fn ($user) => in_array(
-            $user->role?->name, ['admin', 'supervisor'], true
-        ));
+        Gate::define('exportReport', fn ($user) => $user->role?->name === 'admin');
 
         // Master data pendukung -- admin only, tidak butuh Policy per-record
         // karena tidak ada aturan kepemilikan seperti PA/Assignment/Officer.
         Gate::define('manageRegions', fn ($user) => $user->role?->name === 'admin');
+        Gate::define('manageNetworkAssets', fn ($user) => $user->role?->name === 'admin');
         Gate::define('manageKendalaReasons', fn ($user) => $user->role?->name === 'admin');
-
-        // Khusus Super Admin (di luar bypass Gate::before di atas, ditulis
-        // eksplisit juga supaya jelas dibaca & tetap benar walau nanti
-        // Gate::before dihapus)
-        Gate::define('manageUsers', fn ($user) => $user->role?->name === 'super_admin');
-        Gate::define('manageSlaSettings', fn ($user) => $user->role?->name === 'super_admin');
-        Gate::define('viewAuditLog', fn ($user) => $user->role?->name === 'super_admin');
+        Gate::define('manageQcRejectReasons', fn ($user) => $user->role?->name === 'admin');
+        Gate::define('manageSettings', fn ($user) => $user->role?->name === 'admin');
     }
 }
