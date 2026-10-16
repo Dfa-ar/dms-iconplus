@@ -143,6 +143,13 @@ class BastController extends Controller
                 $numberFormat
             );
 
+            $pihakMenyerahkan = filled($validated['pihak_menyerahkan'] ?? null)
+                ? trim((string) $validated['pihak_menyerahkan'])
+                : ($office->pic_nama ?: 'PT Icon Plus');
+            $jabatanMenyerahkan = filled($validated['jabatan_menyerahkan'] ?? null)
+                ? trim((string) $validated['jabatan_menyerahkan'])
+                : ($office->pic_unit ?: 'Manager Operasional');
+
             $document = BastDocument::create([
                 'nomor_bast' => $nomorBast,
                 'region_id' => $region->id,
@@ -151,9 +158,9 @@ class BastController extends Controller
                 'tanggal' => now()->toDateString(),
                 'status' => 'FINAL',
                 'notes' => $validated['notes'] ?? null,
-                'pihak_menyerahkan' => $validated['pihak_menyerahkan'] ?? 'PT Icon Plus',
+                'pihak_menyerahkan' => $pihakMenyerahkan,
                 'pihak_menerima' => $validated['pihak_menerima'] ?? 'Pelanggan',
-                'jabatan_menyerahkan' => $validated['jabatan_menyerahkan'] ?? 'Manager Operasional',
+                'jabatan_menyerahkan' => $jabatanMenyerahkan,
                 'jabatan_menerima' => $validated['jabatan_menerima'] ?? 'PIC Pelanggan',
                 'lokasi' => $validated['lokasi'] ?? $office->nama,
             ]);

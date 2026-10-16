@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\AssignmentController;
 use App\Models\Notification;
 use App\Models\KantorPerwakilan;
 use App\Models\Officer;
@@ -10,6 +11,7 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class AssignmentGenerationTest extends TestCase
@@ -141,6 +143,41 @@ class AssignmentGenerationTest extends TestCase
 
         $this->assertSame(2, PaOrder::query()->where('current_status', PaOrder::STATUS_ASSIGNED)->count());
         $this->assertSame(2, \App\Models\Assignment::query()->where('officer_id', $officer->id)->count());
+    }
+
+    public function test_kp_selection_keeps_kp_scope_without_falling_back_to_first_region(): void
+    {
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $petugasRole = Role::firstOrCreate(['name' => 'petugas']);
+        $admin = User::factory()->create(['role_id' => $adminRole->id, 'is_active' => true]);
+        $office = KantorPerwakilan::create(['nama' => 'KP Bandung Raya', 'kode' => 'BDG']);
+
+        $bandung = Region::create([
+            'kabupaten_kota' => 'Kota Bandung',
+            'parent_group' => 'Bandung Raya',
+            'kantor_perwakilan_id' => $office->id,
+        ]);
+
+        Region::create([
+            'kabupaten_kota' => 'Kota Cimahi',
+            'parent_group' => 'Bandung Raya',
+            'kantor_perwakilan_id' => $office->id,
+        ]);
+
+        Officer::factory()->create([
+            'user_id' => User::factory()->create(['role_id' => $petugasRole->id, 'is_active' => true])->id,
+            'region_id' => $bandung->id,
+            'kantor_perwakilan_id' => $office->id,
+            'is_active' => true,
+        ]);
+
+        $request = Request::create(route('admin.assignments.index', ['kantor_perwakilan_id' => $office->id]), 'GET');
+        auth()->setUser($admin);
+
+        $response = app(AssignmentController::class)->index($request);
+
+        $this->assertNotNull($response->getData()['selectedKantorPerwakilan']);
+        $this->assertNull($response->getData()['selectedRegion']);
     }
 
     public function test_assignment_generation_sends_whatsapp_reminder_to_assigned_officer(): void

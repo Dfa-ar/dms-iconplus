@@ -43,6 +43,44 @@ class MissingUiRoutesTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_pa_master_region_filter_lists_unique_city_names_only(): void
+    {
+        $admin = User::factory()->create([
+            'role_id' => Role::firstOrCreate(['name' => 'admin'])->id,
+            'is_active' => true,
+        ]);
+
+        Region::create([
+            'kabupaten_kota' => 'Kota Bandung',
+            'kecamatan' => null,
+            'kelurahan' => null,
+            'level' => 'kabupaten_kota',
+        ]);
+        Region::create([
+            'kabupaten_kota' => 'Kota Bandung',
+            'kecamatan' => 'Coblong',
+            'kelurahan' => null,
+            'level' => 'kecamatan',
+        ]);
+        Region::create([
+            'kabupaten_kota' => 'Kota Tasikmalaya',
+            'kecamatan' => null,
+            'kelurahan' => null,
+            'level' => 'kabupaten_kota',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.pa.index'))
+            ->assertOk()
+            ->assertViewHas('regions', function ($regions) {
+                $values = $regions->pluck('kabupaten_kota')->all();
+
+                return count($values) === 2
+                    && $values[0] === 'Kota Bandung'
+                    && $values[1] === 'Kota Tasikmalaya';
+            });
+    }
+
     public function test_dashboard_counts_pending_qc_from_qc_status_and_legacy_work_status(): void
     {
         $admin = User::factory()->create([
@@ -230,6 +268,103 @@ class MissingUiRoutesTest extends TestCase
             ->assertViewHas('snAutoRejected', 1)
             ->assertViewHas('funnel.0.count', 0)
             ->assertViewHas('funnel.3.count', 1);
+    }
+
+    public function test_control_tower_reports_qc_compliance_and_repeated_apd_rejections_per_officer(): void
+    {
+        $admin = User::factory()->create([
+            'role_id' => Role::firstOrCreate(['name' => 'admin'])->id,
+            'is_active' => true,
+        ]);
+        $bandung = KantorPerwakilan::create(['nama' => 'KP Bandung QC', 'kode' => 'BDG-QC']);
+        $cirebon = KantorPerwakilan::create(['nama' => 'KP Cirebon QC', 'kode' => 'CRB-QC']);
+        $bandungRegion = Region::create([
+            'kabupaten_kota' => 'Bandung',
+            'kantor_perwakilan_id' => $bandung->id,
+        ]);
+        $cirebonRegion = Region::create([
+            'kabupaten_kota' => 'Cirebon',
+            'kantor_perwakilan_id' => $cirebon->id,
+        ]);
+        $bandungOfficer = Officer::factory()->create([
+            'name' => 'Petugas QC Bandung',
+            'region_id' => $bandungRegion->id,
+            'kantor_perwakilan_id' => $bandung->id,
+            'is_active' => true,
+        ]);
+        $cirebonOfficer = Officer::factory()->create([
+            'name' => 'Petugas QC Cirebon',
+            'region_id' => $cirebonRegion->id,
+            'kantor_perwakilan_id' => $cirebon->id,
+            'is_active' => true,
+        ]);
+
+        $makeReviewedPa = function (string $number, Officer $officer, array $checklist, string $qcStatus, $paDate = null) use ($bandung, $cirebon, $bandungRegion, $cirebonRegion) {
+            $office = $officer->kantor_perwakilan_id === $bandung->id ? $bandung : $cirebon;
+            $region = $office->is($bandung) ? $bandungRegion : $cirebonRegion;
+
+            return PaOrder::factory()->create([
+                'pa_number' => $number,
+                'region_id' => $region->id,
+                'kantor_perwakilan_id' => $office->id,
+                'current_officer_id' => $officer->id,
+                'current_status' => $qcStatus,
+                'qc_status' => $qcStatus,
+                'qc_checklist' => $checklist,
+                'pa_date' => $paDate ?? now()->toDateString(),
+            ]);
+        };
+
+        $passedChecks = array_fill_keys(array_keys(PaOrder::blueprintQcChecklist()), true);
+        $passedPa = $makeReviewedPa('PA-QC-OFFICER-PASS', $bandungOfficer, $passedChecks, PaOrder::QC_STATUS_PASSED);
+        $failedApdChecks = $passedChecks;
+        $failedApdChecks['k3_awal'] = false;
+        $firstApdReject = $makeReviewedPa('PA-QC-OFFICER-APD-1', $bandungOfficer, $failedApdChecks, PaOrder::QC_STATUS_REJECTED);
+        $secondApdReject = $makeReviewedPa('PA-QC-OFFICER-APD-2', $bandungOfficer, $failedApdChecks, PaOrder::QC_STATUS_REJECTED);
+        $failedSnChecks = $passedChecks;
+        $failedSnChecks['sn_ont'] = false;
+        $snReject = $makeReviewedPa('PA-QC-OFFICER-SN', $bandungOfficer, $failedSnChecks, PaOrder::QC_STATUS_REJECTED);
+        $makeReviewedPa('PA-QC-OFFICER-OLD', $bandungOfficer, $passedChecks, PaOrder::QC_STATUS_PASSED, now()->subDays(20)->toDateString());
+        $makeReviewedPa('PA-QC-OTHER-KP', $cirebonOfficer, $failedApdChecks, PaOrder::QC_STATUS_REJECTED);
+
+        foreach ([
+            [$firstApdReject, 'Checklist QC gagal: APD lengkap sebelum pekerjaan.'],
+            [$secondApdReject, 'Checklist QC gagal: APD lengkap sebelum pekerjaan.'],
+            [$snReject, 'SN ONT tidak terbaca.'],
+        ] as [$paOrder, $note]) {
+            $paOrder->statusLogs()->create([
+                'from_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+                'to_status' => PaOrder::QC_STATUS_REJECTED,
+                'changed_by' => $admin->id,
+                'note' => $note,
+                'changed_at' => now(),
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('dashboard', [
+                'kantor_perwakilan_id' => $bandung->id,
+                'from_date' => now()->toDateString(),
+                'to_date' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('Kepatuhan QC per Petugas')
+            ->assertSee('Petugas QC Bandung')
+            ->assertSee('Berulang');
+
+        $rows = $response->viewData('officerCompliance');
+        $bandungRow = $rows->first(fn ($row) => $row['officer']->is($bandungOfficer));
+        $cirebonRow = $rows->first(fn ($row) => $row['officer']->is($cirebonOfficer));
+
+        $this->assertNotNull($bandungRow);
+        $this->assertSame(4, $bandungRow['qc_reviewed']);
+        $this->assertSame(2, $bandungRow['k3_passed']);
+        $this->assertSame(50.0, $bandungRow['k3_percentage']);
+        $this->assertSame(2, $bandungRow['apd_rejections']);
+        $this->assertSame(1, $bandungRow['sn_auto_rejections']);
+        $this->assertNotNull($cirebonRow);
+        $this->assertSame(0, $cirebonRow['qc_reviewed']);
+        $this->assertSame($bandungOfficer->id, $passedPa->current_officer_id);
     }
 
     public function test_admin_petugas_index_renders(): void

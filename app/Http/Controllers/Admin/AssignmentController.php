@@ -32,7 +32,11 @@ class AssignmentController extends Controller
             : null;
         $selectedRegion = $request->filled('region_id')
             ? Region::find($request->integer('region_id'))
-            : $selectedKantorPerwakilan?->regions()->orderBy('kabupaten_kota')->first();
+            : null;
+
+        if ($selectedKantorPerwakilan && ! $request->filled('region_id')) {
+            $selectedRegion = null;
+        }
         $target = max(1, min($request->integer('target_per_officer') ?: 20, 100));
         $officers = collect();
         $candidates = collect();
@@ -109,7 +113,7 @@ class AssignmentController extends Controller
             : null;
         $baseRegion = isset($data['region_id'])
             ? Region::findOrFail($data['region_id'])
-            : $office?->regions()->orderBy('kabupaten_kota')->first();
+            : null;
 
         $result = DB::transaction(fn () => $this->runGenerate($baseRegion, $target, $office));
 

@@ -168,6 +168,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard/map-summary', [DashboardController::class, 'mapSummary'])->name('admin.map.summary');
         Route::get('/reports/export', [DashboardController::class, 'export'])->name('reports.export');
         Route::get('/pa', [PaOrderController::class, 'index'])->name('admin.pa.index');
+        Route::patch('/pa/{paOrder}/coordinates', [PaOrderController::class, 'updateCoordinates'])->name('admin.pa.coordinates');
+        Route::post('/pa/{paOrder}/geocode', [PaOrderController::class, 'queueGeocoding'])->name('admin.pa.geocode');
         Route::get('/pa/{paOrder}', [PaOrderController::class, 'show'])->name('admin.pa.show');
 
         Route::get('/laporan/aging', [AgingReportController::class, 'index'])->name('laporan.aging');
@@ -182,6 +184,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/tasks/{paOrder}/close-icrm', [TaskController::class, 'closeIcrm'])->name('tasks.close-icrm');
         Route::post('/tasks/{paOrder}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
         Route::post('/tasks/{paOrder}/kendala', [TaskController::class, 'kendala'])->name('tasks.kendala');
+        Route::get('/laporan', [TaskController::class, 'report'])->name('tasks.report');
         Route::get('/riwayat', [TaskController::class, 'history'])->name('tasks.history');
         Route::get('/profil', [TaskController::class, 'profile'])->name('profile');
     });

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessPaUpload;
+use App\Jobs\GeocodePaAddress;
 use App\Models\PaOrder;
 use App\Models\Region;
 use App\Models\Role;
@@ -22,6 +23,7 @@ class PaUploadTest extends TestCase
     public function test_admin_can_upload_valid_csv_and_create_pa_orders(): void
     {
         Storage::fake('local');
+        Bus::fake();
         $admin = $this->admin();
         $file = $this->csvFile([
             ['PA-001', 'CUST-001', 'Pelanggan Satu', '081234567890', 'Jl. Mawar 1', 'Bandung', 'Coblong', 'Dago', '2026-09-20'],
@@ -40,6 +42,7 @@ class PaUploadTest extends TestCase
             'id_pln' => 'PLN-TEST',
             'current_status' => PaOrder::STATUS_UNASSIGNED,
         ]);
+        Bus::assertDispatchedTimes(GeocodePaAddress::class, 2);
         $this->assertDatabaseCount('regions', 2);
 
         $batch = UploadBatch::firstOrFail();

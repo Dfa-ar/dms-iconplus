@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\AddressGeocoder;
 use App\Models\PaOrder;
 use App\Models\Region;
 use App\Models\Officer;
@@ -13,6 +14,7 @@ use App\Models\QcRejectReason;
 use App\Models\SlaSetting;
 use App\Observers\MasterDataAuditObserver;
 use App\Observers\PaOrderObserver;
+use App\Services\GoogleMapsAddressGeocoder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -23,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(AddressGeocoder::class, GoogleMapsAddressGeocoder::class);
     }
 
     public function boot(): void

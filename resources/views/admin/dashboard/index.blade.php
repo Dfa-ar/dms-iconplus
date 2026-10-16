@@ -61,15 +61,21 @@
         @endcan
     </div>
 
-    <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-3 border-b border-slate-200 pb-4">
-        <label class="block text-xs font-semibold text-slate-600">KP<select name="kantor_perwakilan_id" class="mt-1 block min-w-52 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Semua KP</option>@foreach($kantorPerwakilan as $kp)<option value="{{ $kp->id }}" @selected((string) ($filters['kantor_perwakilan_id'] ?? '') === (string) $kp->id)>{{ $kp->kode }} · {{ $kp->nama }}</option>@endforeach</select></label>
-        <label class="block text-xs font-semibold text-slate-600">Tanggal PA dari<input type="date" name="from_date" value="{{ $filters['from_date'] ?? '' }}" class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm"></label>
-        <label class="block text-xs font-semibold text-slate-600">Tanggal PA sampai<input type="date" name="to_date" value="{{ $filters['to_date'] ?? '' }}" class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm"></label>
-        <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Terapkan</button>
-        <a href="{{ route('dashboard') }}" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Reset</a>
+    <form method="GET" action="{{ route('dashboard') }}" class="mb-5 grid grid-cols-1 gap-3 border-b border-slate-200 pb-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)_auto_auto]">
+        <label class="block text-xs font-semibold text-slate-600">KP<select name="kantor_perwakilan_id" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Semua KP</option>@foreach($kantorPerwakilan as $kp)<option value="{{ $kp->id }}" @selected((string) ($filters['kantor_perwakilan_id'] ?? '') === (string) $kp->id)>{{ $kp->kode }} · {{ $kp->nama }}</option>@endforeach</select></label>
+        <div class="grid grid-cols-2 gap-3 md:col-span-2 xl:col-span-1">
+            <label class="block text-xs font-semibold text-slate-600">Tanggal PA dari<input type="date" name="from_date" value="{{ $filters['from_date'] ?? '' }}" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></label>
+            <label class="block text-xs font-semibold text-slate-600">Tanggal PA sampai<input type="date" name="to_date" value="{{ $filters['to_date'] ?? '' }}" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></label>
+        </div>
+        <div class="flex items-end gap-2 md:justify-end xl:justify-start">
+            <button type="submit" class="w-full rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 md:w-auto">Terapkan</button>
+        </div>
+        <div class="flex items-end md:justify-end xl:justify-start">
+            <a href="{{ route('dashboard') }}" class="inline-flex w-full items-center justify-center rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 md:w-auto">Reset</a>
+        </div>
     </form>
 
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <x-stat-card label="Total PA Deaktivasi" :value="number_format($total)" icon="list" tone="slate" />
         <x-stat-card label="Selesai / Done" :value="number_format($done).' ('.$statusPercentages['DONE'].'%)'" icon="list" tone="emerald" />
         <x-stat-card label="Diproses" :value="number_format($onProgress).' ('.$statusPercentages['ON_PROGRESS'].'%)'" icon="sync" tone="sky" />
@@ -77,7 +83,7 @@
         <x-stat-card label="Over SLA" :value="number_format($overSla)" icon="clock" tone="red" />
     </div>
 
-    <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <x-stat-card label="QC Pending" :value="number_format($pendingQc)" icon="clock" tone="amber" />
         <x-stat-card label="BAST final" :value="number_format($bastIssued)" icon="list" tone="sky" />
         <x-stat-card label="Pembayaran tercatat" :value="'Rp '.number_format($paymentTotal, 0, ',', '.')" icon="list" tone="emerald" />
@@ -85,12 +91,12 @@
         <x-stat-card label="Auto-reject SN" :value="number_format($snAutoRejected)" icon="alert" tone="red" />
     </div>
 
-    <section class="mt-4 page-panel p-5">
+    <section class="mt-4 page-panel p-5 shadow-sm">
         <div class="mb-4">
             <h3 class="text-sm font-semibold text-slate-900">Funnel operasional</h3>
             <p class="text-xs text-slate-400">Jumlah PA pada setiap tahap siklus saat ini.</p>
         </div>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
             @foreach($funnel as $stage)
                 <div class="border-l-2 border-sky-500 pl-3">
                     <p class="text-xs text-slate-500">{{ $stage['label'] }}</p>
@@ -237,4 +243,50 @@
         <div class="border-b border-slate-100 p-5"><h3 class="text-sm font-semibold text-slate-900">Performa Petugas Hari Ini</h3><p class="text-xs text-slate-400">Tugas yang tertunda dan status pekerjaan per petugas aktif.</p></div>
         <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400"><th class="px-5 py-3 font-medium">Petugas</th><th class="px-5 py-3 font-medium">Wilayah</th><th class="px-5 py-3 font-medium">Assigned</th><th class="px-5 py-3 font-medium">Done</th><th class="px-5 py-3 font-medium">Progress</th><th class="px-5 py-3 font-medium">Kendala</th></tr></thead><tbody class="divide-y divide-slate-50">@forelse ($officerProgress as $officer)<tr class="hover:bg-slate-50/60"><td class="px-5 py-3 font-medium text-slate-700">{{ $officer->name }}</td><td class="px-5 py-3 text-slate-500">{{ $officer->region?->kabupaten_kota ?? '-' }}</td><td class="px-5 py-3 text-slate-500">{{ $officer->assigned_today_count }}</td><td class="px-5 py-3 text-emerald-600">{{ $officer->done_count }}</td><td class="px-5 py-3 text-sky-600">{{ $officer->progress_count }}</td><td class="px-5 py-3 {{ $officer->kendala_count > 0 ? 'font-semibold text-red-600' : 'text-slate-500' }}">{{ $officer->kendala_count }}</td></tr>@empty<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada petugas aktif.</td></tr>@endforelse</tbody></table></div>
     </div>
+
+    <section class="mt-6 rounded-xl border border-slate-200 bg-white">
+        <div class="border-b border-slate-100 p-5">
+            <h3 class="text-sm font-semibold text-slate-900">Kepatuhan QC per Petugas</h3>
+            <p class="text-xs text-slate-400">Kelulusan kategori APD dari hasil QC, jumlah penolakan APD, dan auto-reject SN sesuai filter KP/tanggal.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[900px] text-left text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
+                        <th class="px-5 py-3 font-medium">Petugas</th>
+                        <th class="px-5 py-3 font-medium">Wilayah</th>
+                        <th class="px-5 py-3 font-medium">PA di-QC</th>
+                        <th class="px-5 py-3 font-medium">APD lolos</th>
+                        <th class="px-5 py-3 font-medium">Penolakan APD</th>
+                        <th class="px-5 py-3 font-medium">Pola</th>
+                        <th class="px-5 py-3 font-medium">Auto-reject SN</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @forelse ($officerCompliance as $row)
+                        <tr class="hover:bg-slate-50/60">
+                            <td class="px-5 py-3 font-medium text-slate-700">{{ $row['officer']->name }}</td>
+                            <td class="px-5 py-3 text-slate-500">{{ $row['officer']->region?->kabupaten_kota ?? '-' }}</td>
+                            <td class="px-5 py-3 text-slate-500">{{ $row['qc_reviewed'] }}</td>
+                            <td class="px-5 py-3 font-semibold {{ $row['k3_percentage'] !== null && $row['k3_percentage'] < 100 ? 'text-amber-700' : 'text-emerald-700' }}">
+                                {{ $row['k3_percentage'] === null ? '—' : $row['k3_percentage'].'%' }}
+                                @if ($row['k3_percentage'] !== null)<span class="text-xs font-normal text-slate-400">({{ $row['k3_passed'] }}/{{ $row['qc_reviewed'] }})</span>@endif
+                            </td>
+                            <td class="px-5 py-3 {{ $row['apd_rejections'] > 0 ? 'font-semibold text-rose-700' : 'text-slate-500' }}">{{ $row['apd_rejections'] }}</td>
+                            <td class="px-5 py-3">
+                                @if ($row['apd_rejections'] >= 2)
+                                    <span class="rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-semibold text-rose-700">Berulang</span>
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3 {{ $row['sn_auto_rejections'] > 0 ? 'font-semibold text-rose-700' : 'text-slate-500' }}">{{ $row['sn_auto_rejections'] }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada petugas aktif.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
 @endsection

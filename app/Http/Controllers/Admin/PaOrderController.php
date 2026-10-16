@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Jobs\GeocodePaAddress;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CorrectPaRequest;
 use App\Models\Officer;
@@ -27,6 +28,7 @@ class PaOrderController extends Controller
                 });
             })
             ->when($request->filled('status'), fn ($query) => $query->where('current_status', $request->input('status')))
+            ->when($request->filled('geocode_status'), fn ($query) => $query->where('geocode_status', $request->input('geocode_status')))
             ->when($request->filled('region_id'), fn ($query) => $query->where('region_id', $request->integer('region_id')))
             ->when($request->filled('officer_id'), fn ($query) => $query->where('current_officer_id', $request->integer('officer_id')))
             ->when($request->filled('pa_date'), fn ($query) => $query->whereDate('pa_date', $request->input('pa_date')))
@@ -35,7 +37,13 @@ class PaOrderController extends Controller
 
         return view('admin.pa.index', [
             'paOrders' => $query->paginate(25)->withQueryString(),
-            'regions' => Region::query()->orderBy('kabupaten_kota')->orderBy('kecamatan')->get(),
+            'regions' => Region::query()
+                ->whereNull('kecamatan')
+                ->whereNull('kelurahan')
+                ->orderBy('kabupaten_kota')
+                ->get()
+                ->unique('kabupaten_kota')
+                ->values(),
             'officers' => Officer::query()->where('is_active', true)->orderBy('name')->get(),
             'statuses' => [
                 PaOrder::STATUS_UNASSIGNED,
@@ -43,6 +51,11 @@ class PaOrderController extends Controller
                 PaOrder::STATUS_ON_PROGRESS,
                 PaOrder::STATUS_DONE,
                 PaOrder::STATUS_KENDALA,
+            ],
+            'geocodeStatuses' => [
+                PaOrder::GEOCODE_STATUS_PENDING => 'Menunggu geocoding',
+                PaOrder::GEOCODE_STATUS_OK => 'Lokasi ditemukan',
+                PaOrder::GEOCODE_STATUS_FAILED => 'Perlu tindakan',
             ],
         ]);
     }
@@ -54,6 +67,49 @@ class PaOrderController extends Controller
         $paOrder->load(['region', 'currentOfficer', 'kendalaReason', 'evidences', 'statusLogs.changedBy']);
 
         return view('admin.pa.show', compact('paOrder'));
+    }
+
+    public function updateCoordinates(Request $request, PaOrder $paOrder)
+    {
+        $this->authorize('update', $paOrder);
+
+        $coordinates = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $paOrder->update([
+            ...$coordinates,
+            'geocode_status' => PaOrder::GEOCODE_STATUS_OK,
+            'geocode_error' => null,
+        ]);
+
+        AuditLogger::log(
+            'pa_coordinates_updated',
+            'PaOrder',
+            $paOrder->id,
+            sprintf('Koordinat PA %s diisi manual: %s, %s.', $paOrder->pa_number, $coordinates['latitude'], $coordinates['longitude'])
+        );
+
+        return back()->with('status', 'Koordinat pelanggan berhasil disimpan.');
+    }
+
+    public function queueGeocoding(Request $request, PaOrder $paOrder)
+    {
+        $this->authorize('update', $paOrder);
+
+        if (is_numeric($paOrder->latitude) && is_numeric($paOrder->longitude)) {
+            return back()->with('status', 'Koordinat PA sudah tersedia; ubah koordinat manual bila perlu diperbaiki.');
+        }
+
+        $paOrder->update([
+            'geocode_status' => PaOrder::GEOCODE_STATUS_PENDING,
+            'geocode_error' => null,
+        ]);
+
+        GeocodePaAddress::dispatch($paOrder->id);
+
+        return back()->with('status', 'Geocoding PA masuk antrean. Muat ulang halaman setelah worker selesai.');
     }
 
     /**

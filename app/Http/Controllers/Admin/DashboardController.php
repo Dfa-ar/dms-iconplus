@@ -147,6 +147,59 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $officerCompliance = Officer::query()
+            ->with('region')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (Officer $officer) => [$officer->id => [
+                'officer' => $officer,
+                'qc_reviewed' => 0,
+                'k3_passed' => 0,
+                'k3_percentage' => null,
+                'apd_rejections' => 0,
+                'sn_auto_rejections' => 0,
+            ]]);
+
+        $qcSubmissions = $this->filteredPaOrders($filters)
+            ->whereNotNull('current_officer_id')
+            ->whereIn('qc_status', [PaOrder::QC_STATUS_PASSED, PaOrder::QC_STATUS_REJECTED])
+            ->whereNotNull('qc_checklist')
+            ->get(['current_officer_id', 'qc_checklist']);
+
+        foreach ($qcSubmissions as $submission) {
+            if (! $officerCompliance->has($submission->current_officer_id)) {
+                continue;
+            }
+
+            $row = $officerCompliance->get($submission->current_officer_id);
+            $row['qc_reviewed']++;
+            $checklist = $submission->qc_checklist ?? [];
+
+            if (filter_var($checklist['k3_awal'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                && filter_var($checklist['k3_akhir'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $row['k3_passed']++;
+            }
+
+            $officerCompliance->put($submission->current_officer_id, $row);
+        }
+
+        $apdRejections = $this->qcRejectionCountsByOfficer($filters, 'APD lengkap');
+        $snRejections = $this->qcRejectionCountsByOfficer($filters, 'SN ONT tidak terbaca');
+
+        $officerCompliance = $officerCompliance
+            ->map(function (array $row, int $officerId) use ($apdRejections, $snRejections) {
+                $row['k3_percentage'] = $row['qc_reviewed'] > 0
+                    ? round($row['k3_passed'] / $row['qc_reviewed'] * 100, 1)
+                    : null;
+                $row['apd_rejections'] = (int) ($apdRejections[$officerId] ?? 0);
+                $row['sn_auto_rejections'] = (int) ($snRejections[$officerId] ?? 0);
+
+                return $row;
+            })
+            ->sortByDesc('apd_rejections')
+            ->values();
+
         $totalPa = $this->filteredPaOrders($filters)->count();
         $k3Compliant = $this->filteredPaOrders($filters)
             ->whereHas('evidences', fn ($query) => $query->where('type', 'k3_awal'))
@@ -206,6 +259,7 @@ class DashboardController extends Controller
             ],
             'todaySummary' => $todaySummary,
             'officerProgress' => $officerProgress,
+            'officerCompliance' => $officerCompliance,
             'regions' => $regions,
             'topKendala' => $topKendala,
             'escalations' => $escalations,
@@ -231,6 +285,21 @@ class DashboardController extends Controller
             })
             ->when($filters['from_date'] ?? null, fn (Builder $query, $date) => $query->whereDate('pa_orders.pa_date', '>=', $date))
             ->when($filters['to_date'] ?? null, fn (Builder $query, $date) => $query->whereDate('pa_orders.pa_date', '<=', $date));
+    }
+
+    private function qcRejectionCountsByOfficer(array $filters, string $notePattern)
+    {
+        $filteredPaIds = $this->filteredPaOrders($filters)->select('pa_orders.id');
+
+        return StatusLog::query()
+            ->join('pa_orders', 'pa_orders.id', '=', 'status_logs.pa_id')
+            ->whereIn('status_logs.pa_id', $filteredPaIds)
+            ->where('status_logs.to_status', PaOrder::QC_STATUS_REJECTED)
+            ->where('status_logs.note', 'like', '%' . $notePattern . '%')
+            ->whereNotNull('pa_orders.current_officer_id')
+            ->selectRaw('pa_orders.current_officer_id as officer_id, COUNT(*) as total')
+            ->groupBy('pa_orders.current_officer_id')
+            ->pluck('total', 'officer_id');
     }
 
     private function priorityFor(int $aging, SlaSetting $sla): array

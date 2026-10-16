@@ -74,6 +74,25 @@ mengecek kepemilikan data per baris.
 |---|---|---|
 | `TaskController` | `index`, `show`, `start`, `complete`, `kendala`, `history` | FR-07/08/09 + riwayat (struktur menu 8.2) |
 
+## Rute Kerja Petugas
+
+Halaman Tugas Saya dan detail PA menyediakan pengambilan lokasi perangkat
+setelah petugas menekan tombol dan menyetujui izin browser. Lokasi tidak
+disimpan ke tabel aplikasi; koordinat dipakai untuk menyusun rute dan dibawa
+antarhalaman melalui parameter URL. Geolocation memerlukan HTTPS atau origin
+localhost. Jika izin ditolak atau koordinat tidak tersedia, daftar tetap dapat
+dipakai dan navigasi menggunakan alamat/wilayah PA.
+
+Urutan kunjungan memakai algoritma **nearest-neighbor** dengan jarak Haversine
+garis lurus, dimulai dari lokasi perangkat lalu memilih stop terdekat berikutnya
+dari setiap titik dalam urutan sementara.
+Ini merupakan perkiraan urutan, bukan optimasi jarak jalan atau estimasi waktu
+tempuh. Google Maps menghitung rute jalan sebenarnya. Tautan rute lengkap
+mengirim paling banyak 10 PA (tujuan dan waypoint); seluruh tugas aktif tetap
+tersedia di daftar jika jumlah PA melebihi batas tersebut. Hanya PA berstatus
+`ASSIGNED` atau `ON_PROGRESS` yang dihitung sebagai stop rute; status selesai
+dan kendala tetap terlihat di daftar namun tidak disarankan sebagai tujuan.
+
 ## Auto-Assignment (`AssignmentController::generate`) — FR-05, Blueprint 11.1
 
 Bagian paling penting di sistem (yang menggantikan proses manual
@@ -119,6 +138,36 @@ php artisan queue:work --tries=3
 
 Status hasil dan laporan error tersimpan pada `upload_batches` setelah job
 selesai.
+
+### Geocoding alamat PA
+
+Setelah PA berhasil diimpor, setiap PA dengan alamat masuk ke antrean
+`GeocodePaAddress`. Salin `.env.example` ke `.env`, isi
+`GOOGLE_MAPS_API_KEY`, aktifkan Google Geocoding API pada project Google
+Cloud, lalu jalankan worker:
+
+```bash
+php artisan queue:work --tries=3
+```
+
+Untuk PA yang sudah ada sebelum fitur geocoding, antrekan baris yang belum
+memiliki koordinat dengan:
+
+```bash
+php artisan pa:geocode-missing
+```
+
+Admin dapat memfilter status lokasi pada Master Data PA, melihat alasan
+kegagalan, mencoba ulang geocoding, atau memasukkan latitude/longitude
+manual pada detail PA. Koordinat harus berada pada rentang lintang `-90..90`
+dan bujur `-180..180`. Jika provider tidak memperoleh hasil atau konfigurasi
+belum tersedia, status menjadi `FAILED` dan lokasi tetap dapat diperbaiki
+manual. Provider dibind melalui contract `AddressGeocoder` agar bisa diganti.
+
+Penggunaan Google Geocoding API memerlukan API key dan dapat menimbulkan biaya
+sesuai kuota/harga Google Cloud. Pastikan pembatasan key, billing, kuota, dan
+kebijakan penyimpanan data lokasi sudah disetujui sebelum memproses data
+produksi. Alamat dan wilayah pelanggan dikirim ke provider tersebut.
 
 ## Form Request yang tersedia
 
@@ -225,6 +274,13 @@ sendiri dengan detail gabungan sambil Observer dinonaktifkan sementara
    tertua, dan konfirmasi generate.
 - Control Tower: persentase status, progress hari ini, top kendala, eskalasi,
    dan rekap per petugas.
+- Kepatuhan QC per petugas pada Control Tower: `PA di-QC` menghitung PA
+   dalam filter yang memiliki checklist QC terakhir dan status PASSED/REJECTED;
+   `APD lolos` berarti checklist K3 awal **dan** akhir bernilai lulus. Persentase
+   memakai PA di-QC sebagai denominator. Penolakan APD dan auto-reject SN
+   dihitung dari setiap event `status_logs`; dua atau lebih penolakan APD dalam
+   filter aktif ditandai sebagai pola berulang. Filter KP/tanggal mengikuti
+   tanggal PA.
 - PWA dasar: `public/manifest.json` dan `public/sw.js`.
 
 ## Batasan yang masih perlu dikembangkan

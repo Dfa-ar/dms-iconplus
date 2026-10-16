@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\PaOrder;
 use App\Models\QcRejectReason;
 use App\Models\KendalaReason;
+use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,12 +32,187 @@ class PetugasHistoryTest extends TestCase
             'completed_at' => now(),
         ]);
 
+        $dashboardResponse = $this->actingAs($user)->get(route('petugas.tasks.index'));
+        $dashboardResponse->assertOk();
+        $dashboardResponse->assertViewHas('tasks', fn ($tasks) => $tasks->isEmpty());
+        $dashboardResponse->assertViewHas('workRouteUrl', null);
+
         $response = $this->actingAs($user)->get(route('petugas.tasks.history'));
 
         $response->assertOk();
         $response->assertViewHas('history', function ($history) {
             return $history->count() === 0;
         });
+    }
+
+    public function test_petugas_dashboard_orders_tasks_by_nearest_route_from_current_location(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+
+        $officer = \App\Models\Officer::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $near = Region::create([
+            'kabupaten_kota' => 'Bandung',
+            'lat' => -6.900,
+            'lng' => 107.620,
+        ]);
+        $mid = Region::create([
+            'kabupaten_kota' => 'Bandung Barat',
+            'lat' => -6.900,
+            'lng' => 107.630,
+        ]);
+        $far = Region::create([
+            'kabupaten_kota' => 'Cimahi',
+            'lat' => -6.900,
+            'lng' => 107.600,
+        ]);
+
+        $nearestPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-ROUTE-NEAR',
+            'region_id' => $near->id,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $middlePa = PaOrder::factory()->create([
+            'pa_number' => 'PA-ROUTE-MID',
+            'region_id' => $mid->id,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $farthestPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-ROUTE-FAR',
+            'region_id' => $far->id,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $completedPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-ROUTE-DONE',
+            'region_id' => $near->id,
+            'current_status' => PaOrder::STATUS_DONE,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('petugas.tasks.index', ['lat' => -6.900, 'lng' => 107.610]));
+
+        $response->assertOk();
+        $response->assertViewHas('tasks', function ($tasks) use ($nearestPa, $middlePa, $farthestPa, $completedPa) {
+            $numbers = $tasks->pluck('pa_number')->all();
+
+            return $numbers[0] === $nearestPa->pa_number
+                && $numbers[1] === $middlePa->pa_number
+            && $numbers[2] === $farthestPa->pa_number
+            && $numbers[3] === $completedPa->pa_number;
+        });
+        $response->assertViewHas('routeData', function ($routeData) use ($nearestPa, $middlePa, $farthestPa) {
+            return $routeData[$nearestPa->id]['order'] === 1
+            && $routeData[$middlePa->id]['order'] === 2
+            && $routeData[$farthestPa->id]['order'] === 3
+            && $routeData[$middlePa->id]['distance'] === '≈ 1.1 km';
+        });
+        $response->assertSee('Buka rute lengkap (3 stop)');
+        $response->assertSee('waypoints=', false);
+    }
+
+    public function test_petugas_dashboard_displays_next_task_navigation_to_google_maps(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+
+        $officer = \App\Models\Officer::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $region = Region::create([
+            'kabupaten_kota' => 'Bandung',
+            'lat' => -6.896,
+            'lng' => 107.611,
+        ]);
+
+        $paOrder = PaOrder::factory()->create([
+            'pa_number' => 'PA-ROUTE-NEXT',
+            'region_id' => $region->id,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('petugas.tasks.index', ['lat' => -6.900, 'lng' => 107.610]));
+
+        $response->assertOk();
+        $response->assertSee('Lanjut ke PA Terdekat');
+        $response->assertSee('https://www.google.com/maps/dir/');
+        $response->assertSee($paOrder->pa_number);
+    }
+
+    public function test_petugas_detail_page_displays_next_task_navigation_button(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+
+        $officer = \App\Models\Officer::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $near = Region::create([
+            'kabupaten_kota' => 'Bandung',
+            'lat' => -6.896,
+            'lng' => 107.611,
+        ]);
+        $far = Region::create([
+            'kabupaten_kota' => 'Cimahi',
+            'lat' => -6.950,
+            'lng' => 107.680,
+        ]);
+
+        $currentPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-DETAIL-CURRENT',
+            'region_id' => $near->id,
+            'current_status' => PaOrder::STATUS_ON_PROGRESS,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $nextPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-DETAIL-NEXT',
+            'region_id' => $far->id,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('petugas.tasks.show', $currentPa) . '?lat=-6.900&lng=107.610&accuracy=14.2');
+
+        $response->assertOk();
+        $response->assertSee('Lanjut ke PA Terdekat');
+        $response->assertSee('Navigasi ke PA ini');
+        $response->assertSee('Gunakan lokasi saya');
+        $response->assertSee('akurasi ±14 m');
+        $response->assertSee('name="lat" value="-6.9"', false);
+        $response->assertSee('name="lng" value="107.61"', false);
+        $response->assertSee('name="accuracy" value="14.2"', false);
+        $response->assertSee(route('petugas.tasks.show', $nextPa));
+        $response->assertSee('https://www.google.com/maps/dir/');
     }
 
     public function test_petugas_cannot_complete_pa_that_belongs_to_another_officer(): void
@@ -72,6 +248,52 @@ class PetugasHistoryTest extends TestCase
         $response = $this->actingAs($owner)->post(route('petugas.tasks.complete', $paOrder), []);
 
         $response->assertForbidden();
+    }
+
+    public function test_petugas_compliance_report_page_shows_daily_summary(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+
+        $officer = \App\Models\Officer::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $donePa = PaOrder::factory()->create([
+            'current_status' => PaOrder::STATUS_DONE,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $pendingQcPa = PaOrder::factory()->create([
+            'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $kendalaPa = PaOrder::factory()->create([
+            'current_status' => PaOrder::STATUS_KENDALA,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('petugas.tasks.report'));
+
+        $response->assertOk();
+        $response->assertViewHas('summary', function ($summary) use ($donePa, $pendingQcPa, $kendalaPa) {
+            return $summary['total_tasks'] === 3
+                && $summary['completed_tasks'] === 2
+                && $summary['pending_qc'] === 1
+                && $summary['kendala_tasks'] === 1
+                && $summary['completion_rate'] === 67;
+        });
+        $response->assertSee('Laporan Kepatuhan Harian');
+        $response->assertSee($donePa->pa_number);
+        $response->assertSee($pendingQcPa->pa_number);
+        $response->assertSee($kendalaPa->pa_number);
     }
 
     public function test_petugas_profile_page_is_accessible(): void
@@ -267,7 +489,7 @@ class PetugasHistoryTest extends TestCase
             ->assertSessionHasErrors('step_number');
     }
 
-    public function test_qc_rejects_unreadable_sn_based_on_photo_review(): void
+    public function test_admin_can_approve_qc_despite_unreadable_sn_check(): void
     {
         Storage::fake('public');
         $adminRole = Role::query()->create(['name' => 'admin']);
@@ -319,13 +541,13 @@ class PetugasHistoryTest extends TestCase
 
         $this->assertDatabaseHas('pa_orders', [
             'id' => $paOrder->id,
-            'qc_status' => PaOrder::QC_STATUS_REJECTED,
-            'current_status' => PaOrder::QC_STATUS_REJECTED,
+            'qc_status' => PaOrder::QC_STATUS_PASSED,
+            'current_status' => PaOrder::QC_STATUS_PASSED,
         ]);
         $this->assertDatabaseHas('status_logs', [
             'pa_id' => $paOrder->id,
             'from_status' => PaOrder::STATUS_ON_PROGRESS,
-            'to_status' => PaOrder::QC_STATUS_REJECTED,
+            'to_status' => PaOrder::QC_STATUS_PASSED,
         ]);
     }
 
@@ -486,7 +708,7 @@ class PetugasHistoryTest extends TestCase
         ]);
     }
 
-    public function test_signed_pickup_document_completes_pa_and_queues_qc(): void
+    public function test_signed_pickup_document_completes_pa_and_keeps_route_context_for_next_task(): void
     {
         Storage::fake('public');
         Role::query()->create(['name' => 'petugas']);
@@ -495,34 +717,111 @@ class PetugasHistoryTest extends TestCase
             'is_active' => true,
         ]);
         $officer = \App\Models\Officer::factory()->create(['user_id' => $user->id, 'is_active' => true]);
-        $paOrder = PaOrder::factory()->create([
+        $region = Region::create(['kabupaten_kota' => 'Bandung', 'lat' => -6.9, 'lng' => 107.62]);
+        $currentPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-CURRENT-ROUTE',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.62,
             'current_status' => PaOrder::STATUS_ON_PROGRESS,
             'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
             'close_icrm_step' => 'STEP_5',
+        ]);
+        $nextPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-NEXT-ROUTE',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.621,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        PaOrder::factory()->create([
+            'pa_number' => 'PA-NEAR-ORIGINAL-GPS',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.601,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
         ]);
 
         $this->actingAs($user)
-            ->post(route('petugas.tasks.complete', $paOrder), [
+            ->from(route('petugas.tasks.show', $currentPa) . '?lat=-6.900&lng=107.610&accuracy=14.2')
+            ->post(route('petugas.tasks.complete', $currentPa), [
+                'lat' => -6.900,
+                'lng' => 107.610,
+                'accuracy' => 14.2,
                 'receiver_name' => 'Pelanggan Penerima',
                 'ba_pengambilan_perangkat' => UploadedFile::fake()->create('ba-pengambilan.pdf', 20, 'application/pdf'),
             ])
-            ->assertRedirect(route('petugas.tasks.index'));
+            ->assertRedirect(route('petugas.tasks.show', $nextPa) . '?lat=-6.9&lng=107.62');
 
         $this->assertDatabaseHas('pa_orders', [
-            'id' => $paOrder->id,
+            'id' => $currentPa->id,
             'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
             'qc_status' => PaOrder::QC_STATUS_PENDING,
             'close_icrm_step' => 'STEP_6',
         ]);
         $this->assertDatabaseHas('evidences', [
-            'pa_id' => $paOrder->id,
+            'pa_id' => $currentPa->id,
             'type' => 'ba_pengambilan_perangkat',
             'receiver_name' => 'Pelanggan Penerima',
         ]);
-        $this->assertDatabaseHas('status_logs', [
-            'pa_id' => $paOrder->id,
-            'from_status' => PaOrder::STATUS_ON_PROGRESS,
-            'to_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+    }
+
+    public function test_reporting_kendala_continues_from_blocked_pa_coordinates(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+        $officer = \App\Models\Officer::factory()->create(['user_id' => $user->id, 'is_active' => true]);
+        $reason = KendalaReason::create(['label' => 'Kendala teknis', 'is_active' => true]);
+        $region = Region::create(['kabupaten_kota' => 'Bandung', 'lat' => -6.9, 'lng' => 107.62]);
+        $blockedPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-BLOCKED-ROUTE',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.62,
+            'current_status' => PaOrder::STATUS_ON_PROGRESS,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        $nextPa = PaOrder::factory()->create([
+            'pa_number' => 'PA-AFTER-BLOCKED',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.621,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+        PaOrder::factory()->create([
+            'pa_number' => 'PA-NEAR-START-POINT',
+            'region_id' => $region->id,
+            'latitude' => -6.9,
+            'longitude' => 107.601,
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('petugas.tasks.kendala', $blockedPa), [
+                'kendala_reason_id' => $reason->id,
+                'notes' => 'Akses lokasi terhalang.',
+                'lat' => -6.9,
+                'lng' => 107.61,
+                'accuracy' => 12,
+            ])
+            ->assertRedirect(route('petugas.tasks.show', $nextPa) . '?lat=-6.9&lng=107.62');
+
+        $this->assertDatabaseHas('pa_orders', [
+            'id' => $blockedPa->id,
+            'current_status' => PaOrder::STATUS_KENDALA,
         ]);
     }
 

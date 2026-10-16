@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\GeocodePaAddress;
 use App\Models\PaOrder;
 use App\Models\Region;
 use App\Models\UploadBatch;
@@ -82,6 +83,7 @@ class PaUploadService
         $totalRows = 0;
         $successRows = 0;
         $failedRows = [];
+        $geocodePaIds = [];
         $chunkSize = 500;
 
         $batch->update([
@@ -106,7 +108,7 @@ class PaUploadService
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet);
 
-            DB::transaction(function () use ($rows, $startRow, $mapping, $batch, &$totalRows, &$successRows, &$failedRows) {
+            DB::transaction(function () use ($rows, $startRow, $mapping, $batch, &$totalRows, &$successRows, &$failedRows, &$geocodePaIds) {
                 foreach ($rows as $offset => $row) {
                     if (empty(array_filter($row, fn ($value) => $value !== null && $value !== ''))) {
                         continue;
@@ -141,7 +143,7 @@ class PaUploadService
                         'kelurahan' => $kelurahan ? trim($kelurahan) : null,
                     ]);
 
-                    PaOrder::create([
+                    $paOrder = PaOrder::create([
                         'pa_number' => trim($paNumber),
                         'customer_id' => trim($customerId),
                         'id_pln' => trim($idPln),
@@ -152,10 +154,17 @@ class PaUploadService
                         'pa_date' => $paDate,
                         'current_status' => PaOrder::STATUS_UNASSIGNED,
                         'batch_id' => $batch->id,
+                        'geocode_status' => PaOrder::GEOCODE_STATUS_PENDING,
                     ]);
+                    $geocodePaIds[] = $paOrder->id;
                     $successRows++;
                 }
             });
+
+            foreach ($geocodePaIds as $paOrderId) {
+                GeocodePaAddress::dispatch($paOrderId);
+            }
+            $geocodePaIds = [];
 
             $batch->update([
                 'total_rows' => $totalRows,

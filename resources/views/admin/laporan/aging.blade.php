@@ -32,23 +32,6 @@
 			@endcan
 		</div>
 
-		<form method="GET" action="{{ route('laporan.aging') }}" class="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto_auto]">
-			<select name="region_id" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-400 focus:bg-white">
-				<option value="">Semua wilayah</option>
-				@foreach($regions as $region)
-					<option value="{{ $region->id }}" @selected((string) request('region_id') === (string) $region->id)>{{ $region->kabupaten_kota }}</option>
-				@endforeach
-			</select>
-
-			<select name="per_page" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-400 focus:bg-white">
-				@foreach([10, 15, 25, 50] as $value)
-					<option value="{{ $value }}" @selected((string) request('per_page', 15) === (string) $value)>{{ $value }} / halaman</option>
-				@endforeach
-			</select>
-
-			<button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Terapkan</button>
-		</form>
-
 		<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 			<div class="page-panel p-4">
 				<p class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Total PA</p>

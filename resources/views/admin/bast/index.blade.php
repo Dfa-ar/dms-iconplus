@@ -118,23 +118,23 @@
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Pihak Yang Menyerahkan</label>
-                        <input type="text" name="pihak_menyerahkan" value="PT Icon Plus" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama penyedia / perusahaan">
+                        <input type="text" name="pihak_menyerahkan" value="{{ old('pihak_menyerahkan', $selectedKantorPerwakilan?->pic_nama ?: 'PT Icon Plus') }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama penyedia / perusahaan">
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Pihak Yang Menerima</label>
-                        <input type="text" name="pihak_menerima" value="Pelanggan" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama penerima / pelanggan">
+                        <input type="text" name="pihak_menerima" value="{{ old('pihak_menerima', 'Pelanggan') }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama penerima / pelanggan">
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Jabatan Penyerah</label>
-                        <input type="text" name="jabatan_menyerahkan" value="Manager Operasional" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                        <input type="text" name="jabatan_menyerahkan" value="{{ old('jabatan_menyerahkan', $selectedKantorPerwakilan?->pic_unit ?: 'Manager Operasional') }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Jabatan Penerima</label>
-                        <input type="text" name="jabatan_menerima" value="PIC Pelanggan" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                        <input type="text" name="jabatan_menerima" value="{{ old('jabatan_menerima', 'PIC Pelanggan') }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
                     </div>
                     <div class="md:col-span-2">
                         <label class="mb-1 block text-sm font-medium text-slate-700">Lokasi Serah Terima</label>
-                        <input type="text" name="lokasi" value="{{ $selectedKantorPerwakilan->nama }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama lokasi / wilayah">
+                        <input type="text" name="lokasi" value="{{ old('lokasi', $selectedKantorPerwakilan?->nama) }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" placeholder="Nama lokasi / wilayah">
                     </div>
                 </div>
 

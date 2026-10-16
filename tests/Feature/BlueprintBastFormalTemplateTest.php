@@ -69,4 +69,36 @@ class BlueprintBastFormalTemplateTest extends TestCase
         $this->assertStringContainsString('Pihak Yang Menyerahkan', $document->toPdfText());
         $this->assertStringContainsString('Pihak Yang Menerima', $document->toPdfText());
     }
+
+    public function test_bast_form_prefills_kp_pic_as_default_signatory(): void
+    {
+        $adminRole = \App\Models\Role::firstOrCreate(['name' => 'admin']);
+        $admin = \App\Models\User::factory()->create(['role_id' => $adminRole->id, 'is_active' => true]);
+        $this->actingAs($admin);
+
+        $kp = \App\Models\KantorPerwakilan::create([
+            'nama' => 'Kantor Perwakilan Tasikmalaya',
+            'kode' => 'KP-TSM',
+            'pic_nama' => 'Rahmat Firmansyah',
+            'pic_unit' => 'Manager Operasional',
+        ]);
+        $region = Region::create([
+            'kabupaten_kota' => 'Tasikmalaya',
+            'kantor_perwakilan_id' => $kp->id,
+            'parent_group' => 'Tasikmalaya',
+        ]);
+        PaOrder::factory()->create([
+            'pa_number' => 'PA-BAST-KP-PIC',
+            'region_id' => $region->id,
+            'kantor_perwakilan_id' => $kp->id,
+            'current_status' => PaOrder::QC_STATUS_PASSED,
+            'qc_status' => PaOrder::QC_STATUS_PASSED,
+        ]);
+
+        $response = $this->get(route('admin.bast.index', ['kantor_perwakilan_id' => $kp->id]));
+
+        $response->assertOk()
+            ->assertSee('value="Rahmat Firmansyah"', false)
+            ->assertSee('value="Manager Operasional"', false);
+    }
 }

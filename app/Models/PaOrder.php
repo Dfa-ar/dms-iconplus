@@ -16,6 +16,7 @@ class PaOrder extends Model
 
     protected $fillable = [
         'pa_number', 'customer_id', 'id_pln', 'id_pln_confirmed', 'customer_name', 'contact_phone', 'address',
+        'latitude', 'longitude', 'geocode_status', 'geocode_error',
         'region_id', 'kantor_perwakilan_id', 'fat_point_id', 'splitter_id', 'port_number', 'pa_date',
         'current_status', 'current_officer_id', 'assigned_date', 'started_at',
         'completed_at', 'kendala_reason_id', 'notes', 'batch_id', 'qc_status',
@@ -33,6 +34,8 @@ class PaOrder extends Model
         'sn_ont_readable' => 'boolean',
         'id_pln_confirmed' => 'boolean',
         'kabel_panjang_meter' => 'decimal:2',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 
     // Nilai current_status mengikuti enum di migration
@@ -42,6 +45,10 @@ class PaOrder extends Model
     public const STATUS_DONE = 'DONE';
     public const STATUS_KENDALA = 'KENDALA';
     public const STATUS_CLOSE_ICRM = 'CLOSE_ICRM';
+
+    public const GEOCODE_STATUS_PENDING = 'PENDING';
+    public const GEOCODE_STATUS_OK = 'OK';
+    public const GEOCODE_STATUS_FAILED = 'FAILED';
 
     public const QC_STATUS_PENDING = 'PENDING';
     public const QC_STATUS_PASSED = 'PASSED';

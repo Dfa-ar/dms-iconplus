@@ -43,12 +43,18 @@
 			</div>
 		</div>
 
-		<form method="GET" action="{{ route('admin.pa.index') }}" class="page-panel mb-5 grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-5">
+		<form method="GET" action="{{ route('admin.pa.index') }}" class="page-panel mb-5 grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-6">
 		<input name="search" value="{{ request('search') }}" placeholder="Cari nomor PA, pelanggan, atau ID" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white">
 		<select name="status" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-400 focus:bg-white">
 			<option value="">Semua status</option>
 			@foreach ($statuses as $status)
 				<option value="{{ $status }}" @selected(request('status') === $status)>{{ str_replace('_', ' ', $status) }}</option>
+			@endforeach
+		</select>
+		<select name="geocode_status" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-400 focus:bg-white">
+			<option value="">Semua status lokasi</option>
+			@foreach ($geocodeStatuses as $status => $label)
+				<option value="{{ $status }}" @selected(request('geocode_status') === $status)>{{ $label }}</option>
 			@endforeach
 		</select>
 		<select name="region_id" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-400 focus:bg-white">
@@ -80,6 +86,7 @@
 						<th class="px-5 py-3 font-medium">Petugas</th>
 						<th class="px-5 py-3 font-medium">Tanggal PA</th>
 						<th class="px-5 py-3 font-medium">Status</th>
+						<th class="px-5 py-3 font-medium">Lokasi</th>
 						<th class="px-5 py-3 font-medium text-right">Aksi</th>
 					</tr>
 				</thead>
@@ -95,10 +102,23 @@
 							<td class="px-5 py-4 text-slate-500">{{ $paOrder->currentOfficer?->name ?? 'Belum ditugaskan' }}</td>
 							<td class="px-5 py-4 text-slate-500">{{ $paOrder->pa_date?->format('d/m/Y') ?? '-' }}</td>
 							<td class="px-5 py-4"><x-badge-status :status="$paOrder->current_status" /></td>
+							<td class="px-5 py-4">
+								@php
+									$locationStatus = match ($paOrder->geocode_status) {
+										\App\Models\PaOrder::GEOCODE_STATUS_OK => ['Siap', 'text-emerald-700'],
+										\App\Models\PaOrder::GEOCODE_STATUS_FAILED => ['Gagal', 'text-rose-700'],
+										default => ['Antrean', 'text-amber-700'],
+									};
+								@endphp
+								<span class="text-xs font-semibold {{ $locationStatus[1] }}">{{ $locationStatus[0] }}</span>
+								@if ($paOrder->latitude !== null && $paOrder->longitude !== null)
+									<p class="mt-1 text-xs text-slate-400">{{ number_format($paOrder->latitude, 5) }}, {{ number_format($paOrder->longitude, 5) }}</p>
+								@endif
+							</td>
 							<td class="px-5 py-4 text-right"><a href="{{ route('admin.pa.show', $paOrder) }}" class="inline-flex items-center rounded-lg bg-sky-50 px-2.5 py-1.5 text-sm font-semibold text-sky-700 hover:bg-sky-100">Detail</a></td>
 						</tr>
 					@empty
-						<tr><td colspan="7" class="px-5 py-10 text-center text-sm text-slate-400">Belum ada data PA yang sesuai filter.</td></tr>
+						<tr><td colspan="8" class="px-5 py-10 text-center text-sm text-slate-400">Belum ada data PA yang sesuai filter.</td></tr>
 					@endforelse
 				</tbody>
 			</table>

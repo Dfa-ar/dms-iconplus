@@ -34,14 +34,40 @@ class TaskController extends Controller
                 'tasks' => collect(),
                 'progress' => 0,
                 'target' => 0,
+                'routeData' => [],
+                'nextTask' => null,
+                'nextTaskNavigationUrl' => null,
+                'nextTaskWazeUrl' => null,
+                'originLat' => null,
+                'originLng' => null,
+                'locationAccuracy' => null,
+                'workRouteUrl' => null,
+                'routeStopCount' => 0,
             ])->with('warning', 'Akun kamu belum terhubung ke data petugas manapun. Hubungi Admin.');
         }
 
         $tasks = PaOrder::query()
             ->where('current_officer_id', $officerId)
             ->whereDate('assigned_date', now()->toDateString())
+            ->with(['region', 'currentOfficer.kantorPerwakilan'])
             ->orderBy('current_status')
             ->get();
+
+        $originLat = $this->normalizeCoordinate($request->query('lat'), -90, 90);
+        $originLng = $this->normalizeCoordinate($request->query('lng'), -180, 180);
+
+        $routeTasks = $tasks->filter(fn (PaOrder $task) => $this->isRouteTask($task))->values();
+
+        if ($originLat !== null && $originLng !== null) {
+            $routeTasks = $this->applyNearestRouteOrder($routeTasks, $originLat, $originLng);
+        }
+
+        $routeData = $this->buildRouteData($routeTasks, $originLat, $originLng, $request->query('accuracy'));
+        $tasks = $routeTasks->concat($tasks->reject(fn (PaOrder $task) => $this->isRouteTask($task)))->values();
+        $nextTask = $routeTasks->first();
+        $nextTaskNavigationUrl = $this->buildMapsDirectionUrl($nextTask, $originLat, $originLng);
+        $nextTaskWazeUrl = $this->buildWazeDirectionUrl($nextTask, $originLat, $originLng);
+        $workRouteUrl = $this->buildMapsRouteUrl($routeTasks, $originLat, $originLng);
 
         $doneStatuses = [
             PaOrder::STATUS_DONE,
@@ -56,13 +82,274 @@ class TaskController extends Controller
             'tasks' => $tasks,
             'progress' => $doneToday,
             'target' => $tasks->count(),
+            'routeData' => $routeData,
+            'nextTask' => $nextTask,
+            'nextTaskNavigationUrl' => $nextTaskNavigationUrl,
+            'nextTaskWazeUrl' => $nextTaskWazeUrl,
+            'workRouteUrl' => $workRouteUrl,
+            'routeStopCount' => $routeTasks->count(),
+            'originLat' => $originLat,
+            'originLng' => $originLng,
+            'locationAccuracy' => $this->normalizeCoordinate($request->query('accuracy'), 0, 100000),
         ]);
     }
 
-    public function show(PaOrder $paOrder)
+    private function isRouteTask(PaOrder $task): bool
+    {
+        return in_array($task->current_status, [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS], true);
+    }
+
+    private function applyNearestRouteOrder($tasks, float $originLat, float $originLng)
+    {
+        $remaining = $tasks->values();
+        $ordered = collect();
+        $currentLocation = ['lat' => $originLat, 'lng' => $originLng];
+
+        while ($remaining->isNotEmpty()) {
+            $nearestTask = null;
+            $nearestDistance = PHP_FLOAT_MAX;
+
+            foreach ($remaining as $task) {
+                $coordinates = $this->taskCoordinates($task);
+
+                if ($coordinates === null) {
+                    continue;
+                }
+
+                $distance = $this->haversineDistance(
+                    $currentLocation['lat'],
+                    $currentLocation['lng'],
+                    $coordinates['lat'],
+                    $coordinates['lng']
+                );
+
+                if ($distance < $nearestDistance) {
+                    $nearestTask = $task;
+                    $nearestDistance = $distance;
+                }
+            }
+
+            if ($nearestTask === null) {
+                return $ordered->concat($remaining)->values();
+            }
+
+            $ordered->push($nearestTask);
+            $currentLocation = $this->taskCoordinates($nearestTask);
+            $remaining = $remaining->reject(fn (PaOrder $task) => $task->is($nearestTask))->values();
+        }
+
+        return $ordered;
+    }
+
+    private function buildRouteData($tasks, ?float $originLat, ?float $originLng, mixed $accuracy = null): array
+    {
+        if ($originLat === null || $originLng === null) {
+            return [];
+        }
+
+        $routeData = [];
+
+        $previousLocation = $originLat !== null && $originLng !== null
+            ? ['lat' => $originLat, 'lng' => $originLng]
+            : null;
+
+        foreach ($tasks as $index => $task) {
+            $coordinates = $this->taskCoordinates($task);
+            $distance = $previousLocation === null || $coordinates === null
+                ? 'Jarak belum presisi'
+                : $this->distanceLabel($task, $previousLocation['lat'], $previousLocation['lng']);
+
+            $detailQuery = array_filter([
+                'lat' => $originLat,
+                'lng' => $originLng,
+                'accuracy' => $this->normalizeCoordinate($accuracy, 0, 100000),
+            ], fn ($value) => $value !== null);
+
+            $routeData[$task->id] = [
+                'order' => $index + 1,
+                'distance' => $distance,
+                'detail_url' => route('petugas.tasks.show', $task)
+                    . ($detailQuery === [] ? '' : '?' . http_build_query($detailQuery)),
+            ];
+
+            $previousLocation = $coordinates;
+        }
+
+        return $routeData;
+    }
+
+    private function taskCoordinates(PaOrder $task): ?array
+    {
+        if (is_numeric($task->latitude) && is_numeric($task->longitude)
+            && (float) $task->latitude >= -90 && (float) $task->latitude <= 90
+            && (float) $task->longitude >= -180 && (float) $task->longitude <= 180) {
+            return ['lat' => (float) $task->latitude, 'lng' => (float) $task->longitude];
+        }
+
+        if ($task->region && is_numeric($task->region->lat) && is_numeric($task->region->lng)) {
+            return ['lat' => (float) $task->region->lat, 'lng' => (float) $task->region->lng];
+        }
+
+        if ($task->currentOfficer && $task->currentOfficer->kantorPerwakilan && is_numeric($task->currentOfficer->kantorPerwakilan->latitude) && is_numeric($task->currentOfficer->kantorPerwakilan->longitude)) {
+            return ['lat' => (float) $task->currentOfficer->kantorPerwakilan->latitude, 'lng' => (float) $task->currentOfficer->kantorPerwakilan->longitude];
+        }
+
+        return null;
+    }
+
+    private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadiusKm = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) * sin($dLng / 2);
+
+        return 2 * $earthRadiusKm * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    private function distanceLabel(PaOrder $task, float $originLat, float $originLng): string
+    {
+        $coordinates = $this->taskCoordinates($task);
+
+        if ($coordinates === null) {
+            return 'Lokasi belum presisi';
+        }
+
+        $distanceKm = $this->haversineDistance($originLat, $originLng, $coordinates['lat'], $coordinates['lng']);
+
+        return $distanceKm < 1
+            ? '≈ ' . round($distanceKm * 1000) . ' m'
+            : '≈ ' . round($distanceKm, 1) . ' km';
+    }
+
+    private function normalizeCoordinate(mixed $value, float $minimum, float $maximum): ?float
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $float = (float) $value;
+
+        if (! is_finite($float) || $float < $minimum || $float > $maximum) {
+            return null;
+        }
+
+        return $float;
+    }
+
+    private function buildMapsDirectionUrl(?PaOrder $task, ?float $originLat, ?float $originLng): ?string
+    {
+        if ($task === null) {
+            return null;
+        }
+
+        $coordinates = $this->taskCoordinates($task);
+
+        if ($coordinates === null) {
+            $query = urlencode(trim((string) ($task->address ?: $task->customer_name ?: $task->pa_number ?: 'lokasi PA')));
+
+            return 'https://www.google.com/maps/search/?api=1&query=' . $query;
+        }
+
+        if ($originLat !== null && $originLng !== null) {
+            return 'https://www.google.com/maps/dir/?api=1&origin=' . $originLat . ',' . $originLng
+                . '&destination=' . $coordinates['lat'] . ',' . $coordinates['lng']
+                . '&travelmode=driving';
+        }
+
+        return 'https://www.google.com/maps/search/?api=1&query=' . urlencode($coordinates['lat'] . ',' . $coordinates['lng']);
+    }
+
+    private function buildMapsRouteUrl($tasks, ?float $originLat, ?float $originLng): ?string
+    {
+        if ($tasks->isEmpty() || $originLat === null || $originLng === null) {
+            return null;
+        }
+
+        $stops = $tasks->take(10)->values();
+        $destination = $this->taskRoutePlace($stops->last());
+
+        if ($destination === null) {
+            return null;
+        }
+
+        $waypoints = $stops->slice(0, -1)
+            ->map(fn (PaOrder $task) => $this->taskRoutePlace($task))
+            ->filter()
+            ->implode('|');
+        $url = 'https://www.google.com/maps/dir/?api=1&origin=' . $originLat . ',' . $originLng
+            . '&destination=' . urlencode($destination)
+            . '&travelmode=driving';
+
+        return $waypoints !== '' ? $url . '&waypoints=' . urlencode($waypoints) : $url;
+    }
+
+    private function taskRoutePlace(PaOrder $task): ?string
+    {
+        $coordinates = $this->taskCoordinates($task);
+
+        if ($coordinates !== null) {
+            return $coordinates['lat'] . ',' . $coordinates['lng'];
+        }
+
+        $address = trim((string) ($task->address ?: $task->customer_name ?: $task->pa_number));
+
+        return $address !== '' ? $address : null;
+    }
+
+    private function buildWazeDirectionUrl(?PaOrder $task, ?float $originLat, ?float $originLng): ?string
+    {
+        if ($task === null) {
+            return null;
+        }
+
+        $coordinates = $this->taskCoordinates($task);
+
+        if ($coordinates === null) {
+            $query = urlencode(trim((string) ($task->address ?: $task->customer_name ?: $task->pa_number ?: 'lokasi PA')));
+
+            return 'https://www.waze.com/ul?q=' . $query;
+        }
+
+        return 'https://www.waze.com/ul?ll=' . $coordinates['lat'] . ',' . $coordinates['lng'] . '&navigate=yes';
+    }
+
+    public function show(Request $request, PaOrder $paOrder)
     {
         $this->authorize('view', $paOrder);
-        $paOrder->load('evidences');
+        $paOrder->load(['evidences', 'region']);
+
+        $originLat = $this->normalizeCoordinate($request->query('lat'), -90, 90);
+        $originLng = $this->normalizeCoordinate($request->query('lng'), -180, 180);
+        $locationAccuracy = $this->normalizeCoordinate($request->query('accuracy'), 0, 100000);
+
+        $tasks = PaOrder::query()
+            ->where('current_officer_id', $request->user()->officer?->id)
+            ->whereDate('assigned_date', now()->toDateString())
+            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS])
+            ->whereKeyNot($paOrder->id)
+            ->with(['region', 'currentOfficer.kantorPerwakilan'])
+            ->get();
+
+        if ($originLat !== null && $originLng !== null) {
+            $tasks = $this->applyNearestRouteOrder($tasks, $originLat, $originLng);
+        }
+
+        $nextTask = $tasks->first();
+        $nextTaskQuery = http_build_query(array_filter([
+                'lat' => $originLat,
+                'lng' => $originLng,
+                'accuracy' => $locationAccuracy,
+            ], fn ($value) => $value !== null));
+        $nextTaskDetailUrl = $nextTask
+            ? route('petugas.tasks.show', $nextTask) . ($nextTaskQuery === '' ? '' : '?' . $nextTaskQuery)
+            : null;
+        $nextTaskNavigationUrl = $this->buildMapsDirectionUrl($nextTask, $originLat, $originLng);
+        $nextTaskWazeUrl = $this->buildWazeDirectionUrl($nextTask, $originLat, $originLng);
+        $currentTaskNavigationUrl = $this->buildMapsDirectionUrl($paOrder, $originLat, $originLng);
+        $currentTaskWazeUrl = $this->buildWazeDirectionUrl($paOrder, $originLat, $originLng);
 
         $fatPoints = FatPoint::query()
             ->where('is_active', true)
@@ -75,6 +362,16 @@ class TaskController extends Controller
             'paOrder' => $paOrder,
             'kendalaReasons' => KendalaReason::active()->orderBy('label')->get(),
             'fatPoints' => $fatPoints,
+            'nextTask' => $nextTask,
+            'nextTaskDetailUrl' => $nextTaskDetailUrl,
+            'nextTaskNavigationUrl' => $nextTaskNavigationUrl,
+            'nextTaskWazeUrl' => $nextTaskWazeUrl,
+            'currentTaskNavigationUrl' => $currentTaskNavigationUrl,
+            'currentTaskWazeUrl' => $currentTaskWazeUrl,
+            'currentTaskCoordinates' => $this->taskCoordinates($paOrder),
+            'originLat' => $originLat,
+            'originLng' => $originLng,
+            'locationAccuracy' => $locationAccuracy,
         ]);
     }
 
@@ -254,10 +551,11 @@ class TaskController extends Controller
         );
 
         if ($stepNumber === 6) {
-            return redirect()->route('petugas.tasks.index')->with('status', "PA {$paOrder->pa_number} selesai dan masuk antrean QC.");
+            return $this->redirectToTaskContinuation($request, $paOrder, "PA {$paOrder->pa_number} selesai dan masuk antrean QC.");
         }
 
-        return redirect()->route('petugas.tasks.show', $paOrder)->with('status', "Langkah {$stepNumber} tersimpan. Lanjutkan ke langkah " . ($stepNumber + 1) . '.');
+        return redirect($this->routeWithLocationQuery($request, 'petugas.tasks.show', $paOrder))
+            ->with('status', "Langkah {$stepNumber} tersimpan. Lanjutkan ke langkah " . ($stepNumber + 1) . '.');
     }
 
     public function complete(CompletePaRequest $request, PaOrder $paOrder)
@@ -277,6 +575,66 @@ class TaskController extends Controller
     private function savedCloseIcrmStep(PaOrder $paOrder): int
     {
         return (int) str_replace('STEP_', '', (string) $paOrder->close_icrm_step);
+    }
+
+    private function taskLocationQuery(Request $request): array
+    {
+        $lat = $this->normalizeCoordinate($request->input('lat'), -90, 90);
+        $lng = $this->normalizeCoordinate($request->input('lng'), -180, 180);
+        $accuracy = $this->normalizeCoordinate($request->input('accuracy'), 0, 100000);
+
+        return array_filter([
+            'lat' => $lat,
+            'lng' => $lng,
+            'accuracy' => $accuracy,
+        ], fn ($value) => $value !== null);
+    }
+
+    private function routeWithLocationQuery(Request $request, string $routeName, mixed $routeParameters = null): string
+    {
+        $url = route($routeName, $routeParameters);
+        $query = $this->taskLocationQuery($request);
+
+        if ($query === []) {
+            return $url;
+        }
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . http_build_query($query);
+    }
+
+    private function redirectToTaskContinuation(Request $request, PaOrder $paOrder, string $statusMessage)
+    {
+        $lastStopCoordinates = $this->taskCoordinates($paOrder);
+        $originLat = $lastStopCoordinates['lat'] ?? $this->normalizeCoordinate($request->input('lat'), -90, 90);
+        $originLng = $lastStopCoordinates['lng'] ?? $this->normalizeCoordinate($request->input('lng'), -180, 180);
+
+        $nextTask = PaOrder::query()
+            ->where('current_officer_id', $request->user()->officer?->id)
+            ->whereDate('assigned_date', now()->toDateString())
+            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS])
+            ->whereKeyNot($paOrder->id)
+            ->with(['region', 'currentOfficer.kantorPerwakilan'])
+            ->get();
+
+        if ($originLat !== null && $originLng !== null) {
+            $nextTask = $this->applyNearestRouteOrder($nextTask, $originLat, $originLng);
+        }
+
+        $locationRoute = $nextTask->first();
+        $redirectRoute = $locationRoute !== null ? route('petugas.tasks.show', $locationRoute) : route('petugas.tasks.index');
+
+        $query = $this->taskLocationQuery($request);
+        if ($lastStopCoordinates !== null) {
+            $query = [
+                'lat' => $lastStopCoordinates['lat'],
+                'lng' => $lastStopCoordinates['lng'],
+            ];
+        }
+        if ($query !== []) {
+            $redirectRoute .= (str_contains($redirectRoute, '?') ? '&' : '?') . http_build_query($query);
+        }
+
+        return redirect($redirectRoute)->with('status', $statusMessage);
     }
 
     /** @return array<string, string> */
@@ -354,9 +712,76 @@ class TaskController extends Controller
             "PA {$paOrder->pa_number} dilaporkan kendala: {$data['notes']}"
         );
 
-        return redirect()
-            ->route('petugas.tasks.index')
-            ->with('status', "PA {$paOrder->pa_number} dilaporkan kendala.");
+        return $this->redirectToTaskContinuation($request, $paOrder, "PA {$paOrder->pa_number} dilaporkan kendala.");
+    }
+
+    public function report(Request $request)
+    {
+        $this->authorize('viewAny', PaOrder::class);
+
+        $officerId = $request->user()->officer?->id;
+
+        if (! $officerId) {
+            return view('petugas.laporan.index', [
+                'summary' => [
+                    'total_tasks' => 0,
+                    'completed_tasks' => 0,
+                    'pending_qc' => 0,
+                    'kendala_tasks' => 0,
+                    'completion_rate' => 0,
+                    'document_compliance' => 0,
+                    'k3_compliance' => 0,
+                ],
+                'tasks' => collect(),
+            ])->with('warning', 'Akun kamu belum terhubung ke data petugas manapun. Hubungi Admin.');
+        }
+
+        $tasks = PaOrder::query()
+            ->where('current_officer_id', $officerId)
+            ->whereDate('assigned_date', now()->toDateString())
+            ->with(['region', 'evidences'])
+            ->orderBy('current_status')
+            ->get();
+
+        $completedStatuses = [
+            PaOrder::STATUS_DONE,
+            PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+            PaOrder::QC_STATUS_PASSED,
+            PaOrder::BLUEPRINT_STATUS_BAST_ISSUED,
+            PaOrder::BLUEPRINT_STATUS_PAID,
+        ];
+
+        $completedTasks = $tasks->filter(fn (PaOrder $task) => in_array($task->current_status, $completedStatuses, true))->count();
+        $pendingQc = $tasks->filter(fn (PaOrder $task) => $task->current_status === PaOrder::BLUEPRINT_STATUS_PENDING_QC || $task->qc_status === PaOrder::QC_STATUS_PENDING)->count();
+        $kendalaTasks = $tasks->filter(fn (PaOrder $task) => $task->current_status === PaOrder::STATUS_KENDALA)->count();
+        $documentCompliance = $tasks->isEmpty() ? 0 : (int) round(
+            $tasks->filter(function (PaOrder $task) {
+                $requiredEvidence = ['k3_awal', 'ont_depan', 'ont_belakang_sn', 'k3_akhir', 'ba_pengambilan_perangkat'];
+                $types = $task->evidences->pluck('type')->all();
+
+                return count(array_intersect($requiredEvidence, $types)) >= 4;
+            })->count() / $tasks->count() * 100
+        );
+        $k3Compliance = $tasks->isEmpty() ? 0 : (int) round(
+            $tasks->filter(function (PaOrder $task) {
+                return filled($task->close_icrm_step) && (int) str_replace('STEP_', '', (string) $task->close_icrm_step) >= 5;
+            })->count() / $tasks->count() * 100
+        );
+
+        $summary = [
+            'total_tasks' => $tasks->count(),
+            'completed_tasks' => $completedTasks,
+            'pending_qc' => $pendingQc,
+            'kendala_tasks' => $kendalaTasks,
+            'completion_rate' => $tasks->isEmpty() ? 0 : (int) round(($completedTasks / $tasks->count()) * 100),
+            'document_compliance' => $documentCompliance,
+            'k3_compliance' => $k3Compliance,
+        ];
+
+        return view('petugas.laporan.index', [
+            'summary' => $summary,
+            'tasks' => $tasks,
+        ]);
     }
 
     /**

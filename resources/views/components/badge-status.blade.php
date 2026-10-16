@@ -25,6 +25,6 @@
     }
 @endphp
 
-<span {{ $attributes->merge(['class' => "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold {$class}"]) }}>
+<span {{ $attributes->merge(['class' => "inline-flex items-center gap-1 rounded-full border border-current/10 px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] {$class}"]) }}>
     {{ $label }}
 </span>

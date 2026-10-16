@@ -10,7 +10,7 @@ class QcRejectReasonSeeder extends Seeder
     public function run(): void
     {
         $reasons = [
-            'sn_ont_tidak_terbaca' => 'SN ONT tidak terbaca (auto-reject)',
+            'sn_ont_tidak_terbaca' => 'SN ONT tidak terbaca',
             'foto_apd_tidak_lengkap' => 'Foto APD awal/akhir tidak lengkap',
             'data_kabel_tidak_lengkap' => 'Data kabel/FAT/splitter/port tidak lengkap',
             'id_pln_kwh_tidak_sesuai' => 'ID PLN atau KWH Meter tidak sesuai ketentuan',

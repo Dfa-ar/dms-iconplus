@@ -33,7 +33,36 @@
 
 				<div class="rounded-2xl border border-sky-100 bg-sky-50 p-4">
 					<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">Aksi operasional</p>
+					<div class="mt-3 rounded-xl border border-sky-100 bg-white p-3">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<p class="text-xs font-bold text-slate-700">Lokasi petugas</p>
+								<p id="detail-location-status" class="mt-1 text-xs text-slate-500">
+									@if ($originLat !== null && $originLng !== null)
+										{{ number_format($originLat, 5) }}, {{ number_format($originLng, 5) }}@if ($locationAccuracy !== null) · akurasi ±{{ round($locationAccuracy) }} m @endif
+									@else
+										Lokasi belum digunakan.
+									@endif
+								</p>
+							</div>
+							<button id="detail-location-button" type="button" class="inline-flex min-h-10 items-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50">Gunakan lokasi saya</button>
+						</div>
+						<p class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+							Lokasi PA:
+							@if ($currentTaskCoordinates)
+								{{ number_format($currentTaskCoordinates['lat'], 5) }}, {{ number_format($currentTaskCoordinates['lng'], 5) }}
+							@else
+								koordinat belum tersedia; navigasi menggunakan alamat.
+							@endif
+						</p>
+					</div>
 					<div class="mt-4 flex flex-wrap gap-2">
+						@if ($currentTaskNavigationUrl)
+							<a href="{{ $currentTaskNavigationUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900">Navigasi ke PA ini</a>
+						@endif
+						@if ($currentTaskWazeUrl)
+							<a href="{{ $currentTaskWazeUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Waze</a>
+						@endif
 						@can('start', $paOrder)
 							<form method="POST" action="{{ route('petugas.tasks.start', $paOrder) }}">
 								@csrf
@@ -45,11 +74,29 @@
 							<a href="#close-icrm" class="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Lanjutkan checklist</a>
 						@endcan
 
+						@if ($nextTask && $nextTaskNavigationUrl)
+							<a href="{{ $nextTaskNavigationUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-600">Lanjut ke PA Terdekat</a>
+						@endif
+						@if ($nextTask && $nextTaskWazeUrl)
+							<a href="{{ $nextTaskWazeUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 hover:bg-sky-50">Waze berikutnya</a>
+						@endif
+
+						@if ($nextTask && $nextTaskDetailUrl)
+							<a href="{{ $nextTaskDetailUrl }}" class="inline-flex items-center rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 hover:bg-sky-50">Buka PA berikutnya</a>
+						@endif
+
 						@can('reportKendala', $paOrder)
 							<details class="w-full rounded-xl border border-amber-200 bg-white p-3">
 								<summary class="cursor-pointer text-sm font-semibold text-amber-700">Laporkan Kendala</summary>
 								<form method="POST" action="{{ route('petugas.tasks.kendala', $paOrder) }}" enctype="multipart/form-data" class="mt-3 grid gap-3">
 									@csrf
+									@if ($originLat !== null && $originLng !== null)
+										<input type="hidden" name="lat" value="{{ $originLat }}">
+										<input type="hidden" name="lng" value="{{ $originLng }}">
+									@endif
+									@if ($locationAccuracy !== null)
+										<input type="hidden" name="accuracy" value="{{ $locationAccuracy }}">
+									@endif
 									<select name="kendala_reason_id" required class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="">Pilih alasan kendala</option>@foreach ($kendalaReasons as $reason)<option value="{{ $reason->id }}">{{ $reason->label }}</option>@endforeach</select>
 									<textarea name="notes" required rows="3" placeholder="Keterangan kendala" class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"></textarea>
 									<input type="file" name="foto_kendala" accept="image/*" class="rounded-xl border border-slate-200 px-2 py-2 text-xs">
@@ -98,6 +145,13 @@
 					<form method="POST" action="{{ route('petugas.tasks.close-icrm', $paOrder) }}" enctype="multipart/form-data" class="mt-6 space-y-5">
 						@csrf
 						<input type="hidden" name="step_number" value="{{ $currentStep }}">
+						@if ($originLat !== null && $originLng !== null)
+							<input type="hidden" name="lat" value="{{ $originLat }}">
+							<input type="hidden" name="lng" value="{{ $originLng }}">
+						@endif
+						@if ($locationAccuracy !== null)
+							<input type="hidden" name="accuracy" value="{{ $locationAccuracy }}">
+						@endif
 
 						@if ($currentStep === 1)
 							<div>
@@ -166,4 +220,31 @@
 			</section>
 		@endcan
 	</div>
+		<script>
+			document.getElementById('detail-location-button')?.addEventListener('click', function () {
+				const button = this;
+				const status = document.getElementById('detail-location-status');
+				if (!navigator.geolocation) {
+					status.textContent = 'Perangkat ini tidak mendukung geolocation.';
+					return;
+				}
+
+				button.disabled = true;
+				button.textContent = 'Mengambil lokasi...';
+				status.textContent = 'Meminta izin lokasi perangkat.';
+				navigator.geolocation.getCurrentPosition(function (position) {
+					const url = new URL(window.location.href);
+					url.searchParams.set('lat', position.coords.latitude);
+					url.searchParams.set('lng', position.coords.longitude);
+					url.searchParams.set('accuracy', position.coords.accuracy);
+					window.location.href = url.toString();
+				}, function (error) {
+					button.disabled = false;
+					button.textContent = 'Coba lokasi lagi';
+					status.textContent = error.code === error.PERMISSION_DENIED
+						? 'Izin lokasi ditolak. Navigasi tetap dapat memakai alamat PA.'
+						: 'Lokasi tidak berhasil diperoleh. Periksa GPS dan coba lagi.';
+				}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+			});
+		</script>
 @endsection
