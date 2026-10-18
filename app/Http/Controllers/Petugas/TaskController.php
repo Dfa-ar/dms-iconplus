@@ -48,7 +48,14 @@ class TaskController extends Controller
 
         $tasks = PaOrder::query()
             ->where('current_officer_id', $officerId)
-            ->whereDate('assigned_date', now()->toDateString())
+            ->where(function ($query) {
+                $query->whereDate('assigned_date', now()->toDateString())
+                    ->orWhereIn('current_status', [
+                        PaOrder::STATUS_ASSIGNED,
+                        PaOrder::STATUS_ON_PROGRESS,
+                        PaOrder::QC_STATUS_REJECTED,
+                    ]);
+            })
             ->with(['region', 'currentOfficer.kantorPerwakilan'])
             ->orderBy('current_status')
             ->get();
@@ -96,7 +103,11 @@ class TaskController extends Controller
 
     private function isRouteTask(PaOrder $task): bool
     {
-        return in_array($task->current_status, [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS], true);
+        return in_array($task->current_status, [
+            PaOrder::STATUS_ASSIGNED,
+            PaOrder::STATUS_ON_PROGRESS,
+            PaOrder::QC_STATUS_REJECTED,
+        ], true);
     }
 
     private function applyNearestRouteOrder($tasks, float $originLat, float $originLng)
@@ -327,8 +338,7 @@ class TaskController extends Controller
 
         $tasks = PaOrder::query()
             ->where('current_officer_id', $request->user()->officer?->id)
-            ->whereDate('assigned_date', now()->toDateString())
-            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS])
+            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS, PaOrder::QC_STATUS_REJECTED])
             ->whereKeyNot($paOrder->id)
             ->with(['region', 'currentOfficer.kantorPerwakilan'])
             ->get();
@@ -382,6 +392,7 @@ class TaskController extends Controller
     public function start(PaOrder $paOrder)
     {
         $this->authorize('start', $paOrder);
+        $fromStatus = $paOrder->current_status;
 
         $paOrder->update([
             'current_status' => PaOrder::STATUS_ON_PROGRESS,
@@ -389,7 +400,7 @@ class TaskController extends Controller
         ]);
 
         $paOrder->statusLogs()->create([
-            'from_status' => PaOrder::STATUS_ASSIGNED,
+            'from_status' => $fromStatus,
             'to_status' => PaOrder::STATUS_ON_PROGRESS,
             'changed_by' => auth()->id(),
             'changed_at' => now(),
@@ -610,8 +621,7 @@ class TaskController extends Controller
 
         $nextTask = PaOrder::query()
             ->where('current_officer_id', $request->user()->officer?->id)
-            ->whereDate('assigned_date', now()->toDateString())
-            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS])
+            ->whereIn('current_status', [PaOrder::STATUS_ASSIGNED, PaOrder::STATUS_ON_PROGRESS, PaOrder::QC_STATUS_REJECTED])
             ->whereKeyNot($paOrder->id)
             ->with(['region', 'currentOfficer.kantorPerwakilan'])
             ->get();

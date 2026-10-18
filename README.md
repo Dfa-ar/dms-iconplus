@@ -92,6 +92,9 @@ mengirim paling banyak 10 PA (tujuan dan waypoint); seluruh tugas aktif tetap
 tersedia di daftar jika jumlah PA melebihi batas tersebut. Hanya PA berstatus
 `ASSIGNED` atau `ON_PROGRESS` yang dihitung sebagai stop rute; status selesai
 dan kendala tetap terlihat di daftar namun tidak disarankan sebagai tujuan.
+Tugas `ASSIGNED`, `ON_PROGRESS`, dan `REJECTED` yang belum selesai tetap
+ditampilkan sebagai carry-over meskipun `assigned_date` berasal dari hari
+sebelumnya; tugas selesai dari hari lalu tidak masuk daftar operasional hari ini.
 
 ## Auto-Assignment (`AssignmentController::generate`) — FR-05, Blueprint 11.1
 
@@ -210,7 +213,16 @@ QC massal menerima sampai 50 PA dengan checklist dan keputusan yang sama;
 semua PA divalidasi sebelum perubahan disimpan.
 
 Status PA bergerak dari `PENDING_QC` ke `PASSED` saat QC lolos, atau `REJECTED`
-saat QC ditolak. Penerbitan BAST mengubah status menjadi `BAST_ISSUED`.
+saat QC ditolak. PA yang ditolak tetap terikat ke petugas asal, masuk kembali ke
+Tugas Saya, dan saat dimulai ulang progres Close ICRM direset agar dapat
+dikerjakan ulang. Penilaian foto/checklist menjadi catatan review; keputusan
+approve atau reject tetap ditentukan Admin. Penerbitan BAST mengubah status
+menjadi `BAST_ISSUED`.
+
+Transisi `current_status` ditegakkan pada model `PaOrder` untuk setiap update
+Eloquent; lompatan status di luar siklus ditolak. Koreksi Admin merupakan
+pengecualian eksplisit melalui `correctStatus`, dengan alasan koreksi wajib dan
+pencatatan audit.
 
 ## BAST Batch per KP
 
@@ -277,7 +289,7 @@ sendiri dengan detail gabungan sambil Observer dinonaktifkan sementara
 - Kepatuhan QC per petugas pada Control Tower: `PA di-QC` menghitung PA
    dalam filter yang memiliki checklist QC terakhir dan status PASSED/REJECTED;
    `APD lolos` berarti checklist K3 awal **dan** akhir bernilai lulus. Persentase
-   memakai PA di-QC sebagai denominator. Penolakan APD dan auto-reject SN
+   memakai PA di-QC sebagai denominator. Penolakan APD dan SN
    dihitung dari setiap event `status_logs`; dua atau lebih penolakan APD dalam
    filter aktif ditandai sebagai pola berulang. Filter KP/tanggal mengikuti
    tanggal PA.

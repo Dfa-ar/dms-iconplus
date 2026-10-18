@@ -84,7 +84,8 @@ class QcAndBastFlowTest extends TestCase
             'customer_id' => 'CUST-QC-001',
             'customer_name' => 'Pelanggan QC',
             'region_id' => $region->id,
-            'current_status' => PaOrder::STATUS_DONE,
+            'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+            'qc_status' => PaOrder::QC_STATUS_PENDING,
             'current_officer_id' => $officer->id,
             'id_pln' => 'PLN-QC-001',
             'id_pln_confirmed' => true,
@@ -419,7 +420,7 @@ class QcAndBastFlowTest extends TestCase
             'pa_number' => 'PA-BAST-FORMAL-002',
             'customer_name' => 'Pelanggan Formal',
             'region_id' => $region->id,
-            'current_status' => PaOrder::STATUS_DONE,
+            'current_status' => PaOrder::QC_STATUS_PASSED,
             'current_officer_id' => $officer->id,
             'qc_status' => 'PASSED',
         ]);

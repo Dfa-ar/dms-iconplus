@@ -55,7 +55,7 @@ class BlueprintQcChecklistTest extends TestCase
         $paOrder = PaOrder::factory()->create([
             'pa_number' => 'PA-QC-CHECK-001',
             'region_id' => $region->id,
-            'current_status' => PaOrder::STATUS_DONE,
+            'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
             'qc_status' => null,
         ]);
         $reason = QcRejectReason::create([

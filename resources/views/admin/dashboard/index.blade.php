@@ -88,7 +88,7 @@
         <x-stat-card label="BAST final" :value="number_format($bastIssued)" icon="list" tone="sky" />
         <x-stat-card label="Pembayaran tercatat" :value="'Rp '.number_format($paymentTotal, 0, ',', '.')" icon="list" tone="emerald" />
         <x-stat-card label="K3 awal & akhir lengkap" :value="$k3Compliance['percentage'].'%'" icon="check" tone="emerald" />
-        <x-stat-card label="Auto-reject SN" :value="number_format($snAutoRejected)" icon="alert" tone="red" />
+        <x-stat-card label="Penolakan SN" :value="number_format($snRejected)" icon="alert" tone="red" />
     </div>
 
     <section class="mt-4 page-panel p-5 shadow-sm">
@@ -247,7 +247,7 @@
     <section class="mt-6 rounded-xl border border-slate-200 bg-white">
         <div class="border-b border-slate-100 p-5">
             <h3 class="text-sm font-semibold text-slate-900">Kepatuhan QC per Petugas</h3>
-            <p class="text-xs text-slate-400">Kelulusan kategori APD dari hasil QC, jumlah penolakan APD, dan auto-reject SN sesuai filter KP/tanggal.</p>
+            <p class="text-xs text-slate-400">Kelulusan kategori APD dari hasil QC serta jumlah penolakan APD dan SN sesuai filter KP/tanggal.</p>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[900px] text-left text-sm">
@@ -259,7 +259,7 @@
                         <th class="px-5 py-3 font-medium">APD lolos</th>
                         <th class="px-5 py-3 font-medium">Penolakan APD</th>
                         <th class="px-5 py-3 font-medium">Pola</th>
-                        <th class="px-5 py-3 font-medium">Auto-reject SN</th>
+                        <th class="px-5 py-3 font-medium">Penolakan SN</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -280,7 +280,7 @@
                                     <span class="text-slate-400">—</span>
                                 @endif
                             </td>
-                            <td class="px-5 py-3 {{ $row['sn_auto_rejections'] > 0 ? 'font-semibold text-rose-700' : 'text-slate-500' }}">{{ $row['sn_auto_rejections'] }}</td>
+                            <td class="px-5 py-3 {{ $row['sn_rejections'] > 0 ? 'font-semibold text-rose-700' : 'text-slate-500' }}">{{ $row['sn_rejections'] }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada petugas aktif.</td></tr>

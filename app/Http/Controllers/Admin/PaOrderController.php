@@ -138,7 +138,7 @@ class PaOrderController extends Controller
             $extra['started_at'] = null;
         }
 
-        $paOrder->update(array_merge(['current_status' => $toStatus], $extra));
+        $paOrder->correctStatus(array_merge(['current_status' => $toStatus], $extra));
 
         // Riwayat status resmi (dipakai halaman Riwayat) -- sebelumnya cuma
         // tercatat di audit_logs, sekarang konsisten dengan alur lain

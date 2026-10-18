@@ -61,7 +61,7 @@ class PaOrderPolicy
     {
         return $user->role?->name === 'petugas'
             && $this->isOwner($user, $paOrder)
-            && $paOrder->current_status === PaOrder::STATUS_ASSIGNED;
+            && in_array($paOrder->current_status, [PaOrder::STATUS_ASSIGNED, PaOrder::QC_STATUS_REJECTED], true);
     }
 
     /**

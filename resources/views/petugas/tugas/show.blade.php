@@ -66,7 +66,7 @@
 						@can('start', $paOrder)
 							<form method="POST" action="{{ route('petugas.tasks.start', $paOrder) }}">
 								@csrf
-								<button type="submit" class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-700">Mulai</button>
+								<button type="submit" class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-700">{{ $paOrder->current_status === \App\Models\PaOrder::QC_STATUS_REJECTED ? 'Mulai ulang pekerjaan' : 'Mulai' }}</button>
 							</form>
 						@endcan
 

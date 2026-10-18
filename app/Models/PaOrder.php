@@ -6,10 +6,31 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 class PaOrder extends Model
 {
     use HasFactory;
+
+    protected bool $allowStatusCorrection = false;
+
+    protected static function booted(): void
+    {
+        static::updating(function (PaOrder $paOrder): void {
+            if (! $paOrder->isDirty('current_status') || $paOrder->allowStatusCorrection) {
+                return;
+            }
+
+            $fromStatus = (string) $paOrder->getOriginal('current_status');
+            $toStatus = (string) $paOrder->current_status;
+
+            if (! self::canTransitionFromTo($fromStatus, $toStatus)) {
+                throw ValidationException::withMessages([
+                    'current_status' => "Transisi status PA dari {$fromStatus} ke {$toStatus} tidak diizinkan.",
+                ]);
+            }
+        });
+    }
 
     // Nama tabel tidak mengikuti konvensi jamak default Eloquent
     protected $table = 'pa_orders';
@@ -79,22 +100,37 @@ class PaOrder extends Model
 
     public static function canTransitionFromTo(string $fromStatus, string $toStatus): bool
     {
+        if ($fromStatus === $toStatus) {
+            return true;
+        }
+
         $allowed = [
-            self::STATUS_UNASSIGNED => [self::STATUS_ASSIGNED, self::STATUS_KENDALA],
-            self::STATUS_ASSIGNED => [self::STATUS_ON_PROGRESS, self::STATUS_KENDALA],
+            self::STATUS_UNASSIGNED => [self::STATUS_ASSIGNED],
+            self::STATUS_ASSIGNED => [self::STATUS_ON_PROGRESS, self::STATUS_KENDALA, self::STATUS_UNASSIGNED],
             self::STATUS_ON_PROGRESS => [self::STATUS_DONE, self::STATUS_KENDALA, self::STATUS_CLOSE_ICRM, self::BLUEPRINT_STATUS_PENDING_QC],
-            self::STATUS_DONE => [self::BLUEPRINT_STATUS_PENDING_QC, self::QC_STATUS_PASSED, self::QC_STATUS_REJECTED, self::STATUS_KENDALA],
+            self::STATUS_DONE => [self::BLUEPRINT_STATUS_PENDING_QC, self::STATUS_KENDALA],
             self::STATUS_KENDALA => [self::STATUS_UNASSIGNED, self::STATUS_ASSIGNED, self::STATUS_ON_PROGRESS],
             self::STATUS_CLOSE_ICRM => [self::BLUEPRINT_STATUS_PENDING_QC],
             self::BLUEPRINT_STATUS_PENDING_QC => [self::QC_STATUS_PASSED, self::QC_STATUS_REJECTED],
+            self::QC_STATUS_REJECTED => [self::STATUS_ASSIGNED, self::STATUS_ON_PROGRESS, self::STATUS_UNASSIGNED],
             self::QC_STATUS_PASSED => [self::BLUEPRINT_STATUS_BAST_ISSUED],
-            self::QC_STATUS_REJECTED => [self::STATUS_ASSIGNED, self::STATUS_ON_PROGRESS],
             self::BLUEPRINT_STATUS_BAST_ISSUED => [self::BLUEPRINT_STATUS_PAID, self::BLUEPRINT_STATUS_BAST_VOID],
             self::BLUEPRINT_STATUS_BAST_VOID => [self::BLUEPRINT_STATUS_BAST_ISSUED],
             self::BLUEPRINT_STATUS_PAID => [],
         ];
 
         return in_array($toStatus, $allowed[$fromStatus] ?? [], true);
+    }
+
+    public function correctStatus(array $attributes): bool
+    {
+        $this->allowStatusCorrection = true;
+
+        try {
+            return $this->update($attributes);
+        } finally {
+            $this->allowStatusCorrection = false;
+        }
     }
 
     public static function blueprintQcCategories(): array

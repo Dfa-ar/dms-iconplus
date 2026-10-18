@@ -158,7 +158,7 @@ class DashboardController extends Controller
                 'k3_passed' => 0,
                 'k3_percentage' => null,
                 'apd_rejections' => 0,
-                'sn_auto_rejections' => 0,
+                'sn_rejections' => 0,
             ]]);
 
         $qcSubmissions = $this->filteredPaOrders($filters)
@@ -193,7 +193,7 @@ class DashboardController extends Controller
                     ? round($row['k3_passed'] / $row['qc_reviewed'] * 100, 1)
                     : null;
                 $row['apd_rejections'] = (int) ($apdRejections[$officerId] ?? 0);
-                $row['sn_auto_rejections'] = (int) ($snRejections[$officerId] ?? 0);
+                $row['sn_rejections'] = (int) ($snRejections[$officerId] ?? 0);
 
                 return $row;
             })
@@ -205,7 +205,7 @@ class DashboardController extends Controller
             ->whereHas('evidences', fn ($query) => $query->where('type', 'k3_awal'))
             ->whereHas('evidences', fn ($query) => $query->where('type', 'k3_akhir'))
             ->count();
-        $snAutoRejected = $this->filteredPaOrders($filters)
+        $snRejected = $this->filteredPaOrders($filters)
             ->where('qc_status', PaOrder::QC_STATUS_REJECTED)
             ->whereHas('qcRejectReason', fn ($query) => $query->where('code', 'sn_ont_tidak_terbaca'))
             ->count();
@@ -235,7 +235,7 @@ class DashboardController extends Controller
                 'count' => $k3Compliant,
                 'percentage' => $totalPa > 0 ? round($k3Compliant / $totalPa * 100, 1) : 0,
             ],
-            'snAutoRejected' => $snAutoRejected,
+            'snRejected' => $snRejected,
             'done' => $doneCount,
             'funnel' => $funnel,
             'onProgress' => $statusCounts[PaOrder::STATUS_ON_PROGRESS] ?? 0,

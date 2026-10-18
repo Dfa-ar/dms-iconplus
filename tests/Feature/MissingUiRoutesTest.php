@@ -265,7 +265,7 @@ class MissingUiRoutesTest extends TestCase
             ->assertViewHas('bastIssued', 2)
             ->assertViewHas('paymentTotal', 125000.0)
             ->assertViewHas('k3Compliance', ['count' => 1, 'percentage' => 25.0])
-            ->assertViewHas('snAutoRejected', 1)
+            ->assertViewHas('snRejected', 1)
             ->assertViewHas('funnel.0.count', 0)
             ->assertViewHas('funnel.3.count', 1);
     }
@@ -361,7 +361,7 @@ class MissingUiRoutesTest extends TestCase
         $this->assertSame(2, $bandungRow['k3_passed']);
         $this->assertSame(50.0, $bandungRow['k3_percentage']);
         $this->assertSame(2, $bandungRow['apd_rejections']);
-        $this->assertSame(1, $bandungRow['sn_auto_rejections']);
+        $this->assertSame(1, $bandungRow['sn_rejections']);
         $this->assertNotNull($cirebonRow);
         $this->assertSame(0, $cirebonRow['qc_reviewed']);
         $this->assertSame($bandungOfficer->id, $passedPa->current_officer_id);

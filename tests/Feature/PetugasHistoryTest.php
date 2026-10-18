@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PaOrder;
+use App\Models\Officer;
 use App\Models\QcRejectReason;
 use App\Models\KendalaReason;
 use App\Models\Region;
@@ -123,6 +124,94 @@ class PetugasHistoryTest extends TestCase
         });
         $response->assertSee('Buka rute lengkap (3 stop)');
         $response->assertSee('waypoints=', false);
+    }
+
+    public function test_petugas_dashboard_includes_active_carry_over_but_not_old_completed_tasks(): void
+    {
+        Role::query()->create(['name' => 'petugas']);
+        $user = User::factory()->create([
+            'role_id' => Role::where('name', 'petugas')->value('id'),
+            'is_active' => true,
+        ]);
+        $officer = Officer::factory()->create(['user_id' => $user->id, 'is_active' => true]);
+        $yesterday = now()->subDay()->toDateString();
+
+        $carryOverAssigned = PaOrder::factory()->create([
+            'pa_number' => 'PA-CARRY-ASSIGNED',
+            'current_status' => PaOrder::STATUS_ASSIGNED,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => $yesterday,
+        ]);
+        $carryOverProgress = PaOrder::factory()->create([
+            'pa_number' => 'PA-CARRY-PROGRESS',
+            'current_status' => PaOrder::STATUS_ON_PROGRESS,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => $yesterday,
+        ]);
+        PaOrder::factory()->create([
+            'pa_number' => 'PA-CARRY-DONE',
+            'current_status' => PaOrder::STATUS_DONE,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => $yesterday,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('petugas.tasks.index'))
+            ->assertOk()
+            ->assertViewHas('tasks', function ($tasks) use ($carryOverAssigned, $carryOverProgress) {
+                return $tasks->pluck('id')->all() === [$carryOverAssigned->id, $carryOverProgress->id];
+            });
+    }
+
+    public function test_qc_rejection_resets_progress_and_returns_pa_to_assigned_officer(): void
+    {
+        $adminRole = Role::query()->create(['name' => 'admin']);
+        $petugasRole = Role::query()->create(['name' => 'petugas']);
+        $admin = User::factory()->create(['role_id' => $adminRole->id, 'is_active' => true]);
+        $petugas = User::factory()->create(['role_id' => $petugasRole->id, 'is_active' => true]);
+        $officer = Officer::factory()->create(['user_id' => $petugas->id, 'is_active' => true]);
+        $reason = QcRejectReason::create(['code' => 'qc_rework', 'label' => 'Perlu perbaikan']);
+        $paOrder = PaOrder::factory()->create([
+            'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+            'qc_status' => PaOrder::QC_STATUS_PENDING,
+            'current_officer_id' => $officer->id,
+            'assigned_date' => now()->subDay()->toDateString(),
+            'close_icrm_step' => 'STEP_6',
+            'started_at' => now()->subDays(2),
+            'completed_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.qc.review', $paOrder), [
+                'decision' => 'reject',
+                'reason_id' => $reason->id,
+                'qc_checks' => array_fill_keys(array_keys(PaOrder::blueprintQcChecklist()), true),
+            ])
+            ->assertRedirect(route('admin.qc.index'));
+
+        $paOrder->refresh();
+        $this->assertSame(PaOrder::QC_STATUS_REJECTED, $paOrder->current_status);
+        $this->assertSame(PaOrder::QC_STATUS_REJECTED, $paOrder->qc_status);
+        $this->assertSame($officer->id, $paOrder->current_officer_id);
+        $this->assertNull($paOrder->close_icrm_step);
+        $this->assertNull($paOrder->started_at);
+        $this->assertNull($paOrder->completed_at);
+
+        $this->actingAs($petugas)
+            ->get(route('petugas.tasks.index'))
+            ->assertOk()
+            ->assertViewHas('tasks', fn ($tasks) => $tasks->contains('id', $paOrder->id));
+
+        $this->actingAs($petugas)
+            ->post(route('petugas.tasks.start', $paOrder))
+            ->assertRedirect();
+
+        $this->assertSame(PaOrder::STATUS_ON_PROGRESS, $paOrder->fresh()->current_status);
+        $this->assertDatabaseHas('status_logs', [
+            'pa_id' => $paOrder->id,
+            'from_status' => PaOrder::QC_STATUS_REJECTED,
+            'to_status' => PaOrder::STATUS_ON_PROGRESS,
+        ]);
     }
 
     public function test_petugas_dashboard_displays_next_task_navigation_to_google_maps(): void
@@ -528,6 +617,11 @@ class PetugasHistoryTest extends TestCase
         ]);
         $this->assertDatabaseHas('evidences', ['pa_id' => $paOrder->id, 'type' => 'ont_belakang_sn']);
 
+        $paOrder->update([
+            'current_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
+            'qc_status' => PaOrder::QC_STATUS_PENDING,
+        ]);
+
         $this->actingAs($admin)
             ->post(route('admin.qc.review', $paOrder), [
                 'decision' => 'approve',
@@ -546,7 +640,7 @@ class PetugasHistoryTest extends TestCase
         ]);
         $this->assertDatabaseHas('status_logs', [
             'pa_id' => $paOrder->id,
-            'from_status' => PaOrder::STATUS_ON_PROGRESS,
+            'from_status' => PaOrder::BLUEPRINT_STATUS_PENDING_QC,
             'to_status' => PaOrder::QC_STATUS_PASSED,
         ]);
     }

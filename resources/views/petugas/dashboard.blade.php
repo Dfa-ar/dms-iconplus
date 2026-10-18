@@ -57,7 +57,7 @@
         <div class="mt-5 flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-extrabold text-slate-900">Daftar PA</h2>
-                <p class="text-sm text-slate-500">{{ $tasks->count() }} tugas ditugaskan hari ini</p>
+                <p class="text-sm text-slate-500">{{ $tasks->count() }} tugas hari ini dan carry-over</p>
             </div>
             <a href="{{ route('petugas.tasks.history') }}" class="flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 shadow-sm">Riwayat</a>
         </div>

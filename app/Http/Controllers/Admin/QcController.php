@@ -99,6 +99,9 @@ class QcController extends Controller
                 'qc_reject_reason_id' => $validated['reason_id'] ?? null,
                 'current_status' => PaOrder::QC_STATUS_REJECTED,
                 'qc_checklist' => $qcChecklist,
+                'close_icrm_step' => null,
+                'started_at' => null,
+                'completed_at' => null,
             ]);
 
             $paOrder->statusLogs()->create([
@@ -198,6 +201,9 @@ class QcController extends Controller
                     'qc_reject_reason_id' => $validated['reason_id'] ?? null,
                     'current_status' => $nextStatus,
                     'qc_checklist' => $bulkChecklist,
+                    'close_icrm_step' => $nextStatus === PaOrder::QC_STATUS_REJECTED ? null : $paOrder->close_icrm_step,
+                    'started_at' => $nextStatus === PaOrder::QC_STATUS_REJECTED ? null : $paOrder->started_at,
+                    'completed_at' => $nextStatus === PaOrder::QC_STATUS_REJECTED ? null : $paOrder->completed_at,
                 ]);
 
                 $paOrder->statusLogs()->create([
