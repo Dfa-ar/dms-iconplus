@@ -68,7 +68,7 @@
                     name="identifier"
                     value="{{ old('identifier') }}"
                     placeholder="misal: 9418293740 atau nama@perusahaan.co.id"
-                    class="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    class="input-with-leading-icon w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                     autofocus
                 >
             </div>
@@ -98,7 +98,7 @@
                     :type="showPassword ? 'text' : 'password'"
                     name="password"
                     placeholder="Masukkan kata sandi akun"
-                    class="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-10 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    class="input-with-leading-icon input-with-trailing-icon w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-10 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                 >
                 <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

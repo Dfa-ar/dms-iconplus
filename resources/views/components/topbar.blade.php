@@ -26,7 +26,7 @@
                     type="text"
                     name="search"
                     placeholder="Cari nomor PA, ID pelanggan, atau pelanggan..."
-                    class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
+                    class="input-with-leading-icon w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
                 >
                 </div>
             </form>
