@@ -249,7 +249,7 @@ nav[role="navigation"] a.inline-flex {
     border-color: #cbd5e1;
     border-radius: 0.5rem;
     padding: 0.5rem 0.75rem;
-    color: #475569;
+    color: #0f172a !important;
     font-size: 0.875rem;
     font-weight: 500;
     letter-spacing: 0;
@@ -257,18 +257,24 @@ nav[role="navigation"] a.inline-flex {
     box-shadow: none;
 }
 
+nav[role="navigation"] a,
+nav[role="navigation"] [aria-current="page"] > span,
+nav[role="navigation"] [aria-disabled="true"] span {
+    border-color: #cbd5e1 !important;
+}
+
 nav[role="navigation"] a.inline-flex:hover {
     border-color: #bae6fd;
     background-color: #f0f9ff;
-    color: #0d5a71;
+    color: #0f172a !important;
     box-shadow: none;
     transform: none;
 }
 
 nav[role="navigation"] [aria-current="page"] > span {
-    border-color: #0d5a71;
-    background-color: #0d5a71;
-    color: #ffffff;
+    border-color: #7dd3fc !important;
+    background-color: #e0f2fe;
+    color: #0f172a !important;
 }
 
 nav[role="navigation"] [aria-disabled="true"] span {

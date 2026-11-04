@@ -2,7 +2,7 @@
 
 @php
     $active = 'dashboard';
-    $title = 'Control Tower — Deaktivasi ICONNET';
+    $title = 'Control Tower — PLN ICON PLUS';
     $subtitle = 'Monitoring operasional & tracking SLA penarikan perangkat ONT';
     $statusChartConfig = [
         'type' => 'doughnut',

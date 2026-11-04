@@ -1,6 +1,6 @@
 {
-    "name": "ICONNET Deactivation Management System",
-    "short_name": "ICONNET DMS",
+    "name": "PLN ICON PLUS — Deactivation Management System",
+    "short_name": "PLN ICON PLUS",
     "description": "Manajemen deaktivasi pelanggan dan pengambilan perangkat ICONNET.",
     "start_url": "/",
     "display": "standalone",

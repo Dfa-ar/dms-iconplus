@@ -44,14 +44,8 @@
 <aside class="app-sidebar hidden w-[260px] flex-shrink-0 border-r border-white/10 transition-[width] duration-200 lg:flex lg:flex-col" :class="sidebarCollapsed ? 'lg:w-20' : 'lg:w-[260px]'">
     <div class="flex h-20 items-center justify-between gap-1 border-b border-white/10 px-2 font-semibold text-white">
         <div class="flex min-w-0 items-center gap-2">
-            <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[#0D5A71] shadow-lg">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h7l-1 8 11-14h-7l1-6z" />
-            </svg>
-            </span>
-            <div x-show="! sidebarCollapsed" x-cloak class="min-w-0 leading-tight">
-                <p class="text-sm tracking-wide">ICONNET</p>
-                <p class="text-[10px] font-normal text-white/55">Deactivation Management</p>
+            <div class="flex h-10 items-center justify-center overflow-hidden rounded-lg bg-white p-1" :class="sidebarCollapsed ? 'w-10' : 'w-[150px]'">
+                <img src="{{ asset('image/pln_iconplus.png') }}" alt="PLN ICON PLUS" class="h-full w-full" :class="sidebarCollapsed ? 'object-cover object-left' : 'object-contain'">
             </div>
         </div>
         <button type="button" @click="toggleSidebar()" :aria-label="sidebarCollapsed ? 'Perlebar sidebar' : 'Perkecil sidebar'" :title="sidebarCollapsed ? 'Perlebar sidebar' : 'Perkecil sidebar'" :aria-expanded="(! sidebarCollapsed).toString()" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white">

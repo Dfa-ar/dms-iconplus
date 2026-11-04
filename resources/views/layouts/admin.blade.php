@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
-    <title>@yield('title', 'Dashboard') — IDMS ICONNET</title>
+    <title>@yield('title', 'Dashboard') — PLN ICON PLUS</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>
@@ -20,7 +20,7 @@
         <div x-show="drawerOpen" x-cloak class="fixed inset-0 z-40 lg:hidden" @keydown.escape.window="drawerOpen = false">
             <div class="absolute inset-0 bg-slate-950/40" @click="drawerOpen = false"></div>
             <aside class="app-sidebar relative h-full w-[min(82vw,320px)] p-4 shadow-2xl" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0">
-                <div class="flex items-center justify-between border-b border-white/10 px-2 pb-5 text-white"><span class="font-bold">ICONNET DMS</span><button @click="drawerOpen = false" class="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/10" aria-label="Tutup navigasi">&times;</button></div>
+                <div class="flex items-center justify-between border-b border-white/10 px-2 pb-5 text-white"><span class="inline-flex h-12 w-[150px] items-center justify-center rounded-lg bg-white px-2"><img src="{{ asset('image/pln_iconplus.png') }}" alt="PLN ICON PLUS" class="max-h-10 max-w-full object-contain"></span><button @click="drawerOpen = false" class="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/10" aria-label="Tutup navigasi">&times;</button></div>
                 <nav class="mt-5 space-y-1">@foreach ([['label' => 'Control Tower', 'route' => 'dashboard'], ['label' => 'Master Data PA', 'route' => 'admin.pa.index'], ['label' => 'Auto-Assignment', 'route' => 'admin.assignments.index'], ['label' => 'Manajemen Akun', 'route' => 'admin.accounts.index'], ['label' => 'Laporan Aging & SLA', 'route' => 'laporan.aging']] as $item)<a href="{{ route($item['route']) }}" class="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white">{{ $item['label'] }}</a>@endforeach</nav>
             </aside>
         </div>

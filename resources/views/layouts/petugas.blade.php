@@ -3,20 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Tugas Saya') — IDMS ICONNET</title>
+    <title>@yield('title', 'Tugas Saya') — PLN ICON PLUS</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
     <div class="mx-auto flex min-h-screen max-w-md flex-col bg-white shadow-sm">
         <header class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <div class="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-teal-300">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h7l-1 8 11-14h-7l1-6z" />
-                    </svg>
-                </span>
-                ICONNET Teknisi
+            <div class="inline-flex h-10 w-[135px] items-center justify-center rounded-lg bg-white px-2">
+                <img src="{{ asset('image/pln_iconplus.png') }}" alt="PLN ICON PLUS" class="max-h-10 max-w-full object-contain">
             </div>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf

@@ -58,7 +58,7 @@
 								<span class="text-sm font-bold text-sky-700">{{ max($target - $officer->carry_over_count, 0) }} slot</span>
 							</div>
 							<div class="mt-3 flex flex-wrap gap-2">
-								<button type="button" data-copy-message="📢 Tugas Deaktivasi Hari Ini\nHalo {{ $officer->name }}, terdapat {{ max($target - $officer->carry_over_count, 0) }} PA yang perlu dikerjakan hari ini.\nSilakan akses tugas melalui sistem Deaktivasi ICONNET.\nTarget hari ini: {{ max($target - $officer->carry_over_count, 0) }} PA\nWilayah: {{ $selectedKantorPerwakilan?->nama ?? $selectedRegion?->kabupaten_kota ?? '-' }}\nLink: {{ url('/my/tasks') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Salin pesan WhatsApp</button>
+								<button type="button" data-copy-message="📢 Tugas Deaktivasi Hari Ini\nHalo {{ $officer->name }}, terdapat {{ max($target - $officer->carry_over_count, 0) }} PA yang perlu dikerjakan hari ini.\nSilakan akses sistem PLN ICON PLUS untuk proses deaktivasi layanan ICONNET.\nTarget hari ini: {{ max($target - $officer->carry_over_count, 0) }} PA\nWilayah: {{ $selectedKantorPerwakilan?->nama ?? $selectedRegion?->kabupaten_kota ?? '-' }}\nLink: {{ url('/my/tasks') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Salin pesan WhatsApp</button>
 								<form method="POST" action="{{ route('admin.assignments.remind', $officer) }}" class="inline-block">
 									@csrf
 									@if($selectedKantorPerwakilan)
