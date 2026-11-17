@@ -401,7 +401,7 @@ class MissingUiRoutesTest extends TestCase
         $response = $this->actingAs($admin)->getJson(route('admin.map.summary'));
 
         $response->assertOk()
-            ->assertJsonPath('data.0.name', 'Bandung Raya');
+            ->assertJsonPath('data.0.name', 'KP Bandung');
     }
 
     public function test_petugas_dashboard_renders(): void

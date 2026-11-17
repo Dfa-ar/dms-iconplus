@@ -7,50 +7,42 @@ use Illuminate\Database\Seeder;
 
 class RegionSeeder extends Seeder
 {
-    /** Seed all regencies and cities in West Java without overwriting existing links. */
+    /** Seed all regencies and cities in West Java with their assigned KP groups. */
     public function run(): void
     {
         $regions = [
-            'Bandung Raya' => [
+            'KP Bandung' => [
                 'Kota Bandung',
                 'Kab. Bandung',
                 'Kab. Bandung Barat',
                 'Kota Cimahi',
-                'Kab. Sumedang',
-            ],
-            'Bogor Raya' => [
                 'Kota Bogor',
                 'Kab. Bogor',
-                'Kota Depok',
-            ],
-            'Bekasi Raya' => [
-                'Kota Bekasi',
-                'Kab. Bekasi',
-            ],
-            'Purwasuka' => [
                 'Kab. Purwakarta',
                 'Kab. Karawang',
                 'Kab. Subang',
+                'Kab. Sukabumi',
+                'Kota Sukabumi',
+                'Kab. Cianjur',
             ],
-            'Cirebon' => [
+            'KP Cirebon' => [
+                'Kab. Sumedang',
                 'Kota Cirebon',
                 'Kab. Cirebon',
                 'Kab. Indramayu',
                 'Kab. Kuningan',
                 'Kab. Majalengka',
             ],
-            'Tasikmalaya' => [
+            'KP Tasikmalaya' => [
                 'Kota Tasikmalaya',
                 'Kab. Tasikmalaya',
                 'Kab. Ciamis',
                 'Kab. Garut',
                 'Kab. Pangandaran',
                 'Kota Banjar',
-            ],
-            'Sukabumi' => [
-                'Kab. Sukabumi',
-                'Kota Sukabumi',
-                'Kab. Cianjur',
+                'Kota Bekasi',
+                'Kab. Bekasi',
+                'Kota Depok',
             ],
         ];
         $coordinates = [
@@ -89,6 +81,10 @@ class RegionSeeder extends Seeder
                     ['kabupaten_kota' => $kabupatenKota],
                     ['parent_group' => $parentGroup]
                 );
+
+                if ($region->parent_group !== $parentGroup) {
+                    $region->update(['parent_group' => $parentGroup]);
+                }
 
                 if ($region->lat === null && $region->lng === null && isset($coordinates[$kabupatenKota])) {
                     $region->update([

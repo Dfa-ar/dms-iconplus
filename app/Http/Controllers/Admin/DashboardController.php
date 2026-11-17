@@ -518,11 +518,9 @@ class DashboardController extends Controller
     private function mapSummaryFallbackPayload(): array
     {
         $base = [
-            ['name' => 'Bandung Raya', 'lat' => -6.9147, 'lng' => 107.6098, 'area' => 'Bandung, Cimahi, Kabupaten Bandung'],
-            ['name' => 'Cirebon', 'lat' => -6.7063, 'lng' => 108.5570, 'area' => 'Kota Cirebon, Kabupaten Cirebon'],
-            ['name' => 'Tasikmalaya', 'lat' => -7.3274, 'lng' => 108.2207, 'area' => 'Kota Tasikmalaya, Kabupaten Tasikmalaya'],
-            ['name' => 'Purwakarta', 'lat' => -6.5397, 'lng' => 107.4437, 'area' => 'Kabupaten Purwakarta'],
-            ['name' => 'Sukabumi', 'lat' => -6.9186, 'lng' => 106.9263, 'area' => 'Kabupaten & Kota Sukabumi'],
+            ['name' => 'KP Bandung', 'lat' => -6.9175, 'lng' => 107.6191, 'area' => 'Karawang, Subang, Purwakarta, Bandung, Sukabumi, Cianjur, Bogor, Cimahi, Bandung Barat'],
+            ['name' => 'KP Cirebon', 'lat' => -6.7063, 'lng' => 108.5570, 'area' => 'Sumedang, Majalengka, Indramayu, Kuningan, Cirebon'],
+            ['name' => 'KP Tasikmalaya', 'lat' => -7.3274, 'lng' => 108.2207, 'area' => 'Tasikmalaya, Garut, Pangandaran, Ciamis, Banjar, Bekasi, Depok'],
         ];
 
         $data = [];

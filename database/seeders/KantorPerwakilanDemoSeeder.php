@@ -13,13 +13,9 @@ class KantorPerwakilanDemoSeeder extends Seeder
     public function run(): void
     {
         $offices = [
-            ['kode' => 'DUMMY-BDG', 'nama' => 'Dummy KP Bandung Raya', 'groups' => ['Bandung Raya', 'Bandung'], 'lat' => -6.9175, 'lng' => 107.6191],
-            ['kode' => 'DUMMY-BGR', 'nama' => 'Dummy KP Bogor Raya', 'groups' => ['Bogor Raya'], 'lat' => -6.5950, 'lng' => 106.8167],
-            ['kode' => 'DUMMY-BKS', 'nama' => 'Dummy KP Bekasi Raya', 'groups' => ['Bekasi Raya'], 'lat' => -6.2383, 'lng' => 106.9756],
-            ['kode' => 'DUMMY-PWK', 'nama' => 'Dummy KP Purwasuka', 'groups' => ['Purwasuka', 'Purwakarta'], 'lat' => -6.5569, 'lng' => 107.4422],
-            ['kode' => 'DUMMY-CRB', 'nama' => 'Dummy KP Cirebon', 'groups' => ['Cirebon'], 'lat' => -6.7063, 'lng' => 108.5570],
-            ['kode' => 'DUMMY-TSM', 'nama' => 'Dummy KP Tasikmalaya', 'groups' => ['Tasikmalaya'], 'lat' => -7.3274, 'lng' => 108.2207],
-            ['kode' => 'DUMMY-SKB', 'nama' => 'Dummy KP Sukabumi', 'groups' => ['Sukabumi'], 'lat' => -6.9277, 'lng' => 106.9299],
+            ['kode' => 'DUMMY-BDG', 'nama' => 'Dummy KP Bandung', 'groups' => ['KP Bandung'], 'lat' => -6.9175, 'lng' => 107.6191],
+            ['kode' => 'DUMMY-CRB', 'nama' => 'Dummy KP Cirebon', 'groups' => ['KP Cirebon'], 'lat' => -6.7063, 'lng' => 108.5570],
+            ['kode' => 'DUMMY-TSM', 'nama' => 'Dummy KP Tasikmalaya', 'groups' => ['KP Tasikmalaya'], 'lat' => -7.3274, 'lng' => 108.2207],
         ];
 
         foreach ($offices as $data) {

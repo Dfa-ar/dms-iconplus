@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KantorPerwakilan;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
@@ -21,6 +22,67 @@ class RegionOfficeHierarchyTest extends TestCase
         $this->assertDatabaseHas('regions', ['kabupaten_kota' => 'Kab. Pangandaran']);
         $this->assertDatabaseHas('regions', ['kabupaten_kota' => 'Kota Depok']);
         $this->assertDatabaseHas('regions', ['kabupaten_kota' => 'Kab. Bekasi']);
+
+        $expectedGroups = [
+            'KP Bandung' => [
+                'Kab. Bandung',
+                'Kab. Bandung Barat',
+                'Kab. Bogor',
+                'Kab. Cianjur',
+                'Kab. Karawang',
+                'Kab. Purwakarta',
+                'Kab. Subang',
+                'Kab. Sukabumi',
+                'Kota Bandung',
+                'Kota Bogor',
+                'Kota Cimahi',
+                'Kota Sukabumi',
+            ],
+            'KP Cirebon' => [
+                'Kab. Cirebon',
+                'Kab. Indramayu',
+                'Kab. Kuningan',
+                'Kab. Majalengka',
+                'Kab. Sumedang',
+                'Kota Cirebon',
+            ],
+            'KP Tasikmalaya' => [
+                'Kab. Bekasi',
+                'Kab. Ciamis',
+                'Kab. Garut',
+                'Kab. Pangandaran',
+                'Kab. Tasikmalaya',
+                'Kota Banjar',
+                'Kota Bekasi',
+                'Kota Depok',
+                'Kota Tasikmalaya',
+            ],
+        ];
+
+        foreach ($expectedGroups as $parentGroup => $expectedRegions) {
+            $this->assertSame(
+                $expectedRegions,
+                Region::where('parent_group', $parentGroup)->orderBy('kabupaten_kota')->pluck('kabupaten_kota')->all()
+            );
+        }
+    }
+
+    public function test_region_seeder_corrects_existing_kp_groups_without_changing_region_links(): void
+    {
+        $office = KantorPerwakilan::create([
+            'nama' => 'KP Karawang',
+            'kode' => 'KRG',
+        ]);
+        $region = Region::create([
+            'kabupaten_kota' => 'Kab. Karawang',
+            'parent_group' => 'Purwasuka',
+            'kantor_perwakilan_id' => $office->id,
+        ]);
+
+        $this->seed(\Database\Seeders\RegionSeeder::class);
+
+        $this->assertSame('KP Bandung', $region->fresh()->parent_group);
+        $this->assertSame($office->id, $region->fresh()->kantor_perwakilan_id);
     }
 
     public function test_region_can_store_office_hierarchy_metadata(): void
