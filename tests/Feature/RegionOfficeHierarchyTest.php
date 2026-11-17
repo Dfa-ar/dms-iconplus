@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\KantorPerwakilan;
+use App\Models\PaOrder;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\KantorPerwakilanDemoSeeder;
+use Database\Seeders\RegionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,8 +18,8 @@ class RegionOfficeHierarchyTest extends TestCase
 
     public function test_region_seeder_includes_all_west_java_cities_and_regencies_idempotently(): void
     {
-        $this->seed(\Database\Seeders\RegionSeeder::class);
-        $this->seed(\Database\Seeders\RegionSeeder::class);
+        $this->seed(RegionSeeder::class);
+        $this->seed(RegionSeeder::class);
 
         $this->assertSame(27, Region::query()->count());
         $this->assertDatabaseHas('regions', ['kabupaten_kota' => 'Kab. Pangandaran']);
@@ -79,10 +82,70 @@ class RegionOfficeHierarchyTest extends TestCase
             'kantor_perwakilan_id' => $office->id,
         ]);
 
-        $this->seed(\Database\Seeders\RegionSeeder::class);
+        $this->seed(RegionSeeder::class);
 
         $this->assertSame('KP Bandung', $region->fresh()->parent_group);
         $this->assertSame($office->id, $region->fresh()->kantor_perwakilan_id);
+    }
+
+    public function test_demo_kp_seeder_consolidates_legacy_dummy_offices_and_preserves_pa_links(): void
+    {
+        $this->seed(RegionSeeder::class);
+
+        $legacyOffices = [
+            'DUMMY-BDG' => 'Kab. Bandung',
+            'DUMMY-BGR' => 'Kab. Bogor',
+            'DUMMY-BKS' => 'Kab. Bekasi',
+            'DUMMY-PWK' => 'Kab. Karawang',
+            'DUMMY-CRB' => 'Kab. Cirebon',
+            'DUMMY-TSM' => 'Kab. Tasikmalaya',
+            'DUMMY-SKB' => 'Kab. Cianjur',
+        ];
+        $legacyPaIds = [];
+
+        foreach ($legacyOffices as $code => $regionName) {
+            $office = KantorPerwakilan::create([
+                'nama' => 'Dummy '.$code,
+                'kode' => $code,
+            ]);
+            $region = Region::where('kabupaten_kota', $regionName)->firstOrFail();
+            $region->update(['kantor_perwakilan_id' => $office->id]);
+            $legacyPaIds[] = PaOrder::factory()->create([
+                'region_id' => $region->id,
+                'kantor_perwakilan_id' => $office->id,
+                'batch_id' => null,
+            ])->id;
+        }
+
+        $this->seed(KantorPerwakilanDemoSeeder::class);
+        $this->seed(KantorPerwakilanDemoSeeder::class);
+
+        $this->assertSame(3, KantorPerwakilan::count());
+        $this->assertSame(
+            ['KP Bandung', 'KP Cirebon', 'KP Tasikmalaya'],
+            KantorPerwakilan::orderBy('nama')->pluck('nama')->all()
+        );
+        $this->assertSame(0, KantorPerwakilan::where('nama', 'like', '%dummy%')->count());
+        $this->assertSame(0, KantorPerwakilan::where('kode', 'like', 'DUMMY-%')->count());
+        $this->assertSame(7, PaOrder::whereIn('id', $legacyPaIds)->whereNotNull('kantor_perwakilan_id')->count());
+        $this->assertSame(
+            KantorPerwakilan::where('kode', 'BDG')->value('id'),
+            PaOrder::where('id', $legacyPaIds[1])->value('kantor_perwakilan_id')
+        );
+        $this->assertSame(
+            KantorPerwakilan::where('kode', 'TSM')->value('id'),
+            PaOrder::where('id', $legacyPaIds[2])->value('kantor_perwakilan_id')
+        );
+
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $admin = User::factory()->create(['role_id' => $adminRole->id, 'is_active' => true]);
+        $this->actingAs($admin)
+            ->getJson(route('admin.map.summary'))
+            ->assertOk()
+            ->assertJsonPath('clusters.0.name', 'KP Bandung')
+            ->assertJsonPath('clusters.1.name', 'KP Cirebon')
+            ->assertJsonPath('clusters.2.name', 'KP Tasikmalaya')
+            ->assertJsonCount(3, 'clusters');
     }
 
     public function test_region_can_store_office_hierarchy_metadata(): void
